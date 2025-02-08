@@ -3,7 +3,6 @@
 import React, { useState } from "react";
 import { Stage, Layer, Rect, Text, Group, Circle, Line } from "react-konva";
 
-// Définition d'un module logique générique
 type LogicGate = {
   id: string;
   name: string;
@@ -14,7 +13,6 @@ type LogicGate = {
   logic: (inputs: boolean[]) => boolean[];
 };
 
-// Définition d'une connexion entre modules
 type Connection = {
   fromGate: string;
   fromOutput: number;
@@ -22,7 +20,6 @@ type Connection = {
   toInput: number;
 };
 
-// Liste des modules logiques pré-définis
 const defaultGates = {
   AND: {
     name: "AND",
@@ -96,7 +93,6 @@ export default function Page() {
 
       <Stage width={800} height={500} className="border border-gray-300">
         <Layer>
-          {/* Dessin des connexions */}
           {connections.map((conn, index) => {
             const fromGate = gates.find((g) => g.id === conn.fromGate);
             const toGate = gates.find((g) => g.id === conn.toGate);
@@ -119,7 +115,6 @@ export default function Page() {
               <Rect width={80} height={50} fill="white" stroke="black" strokeWidth={2} cornerRadius={8} />
               <Text text={gate.name} fontSize={16} fill="black" align="center" width={80} height={50} verticalAlign="middle" />
 
-              {/* Entrées */}
               {Array.from({ length: gate.inputs }).map((_, i) => (
                 <Circle
                   key={`in-${gate.id}-${i}`}
@@ -131,7 +126,6 @@ export default function Page() {
                 />
               ))}
 
-              {/* Sorties */}
               {Array.from({ length: gate.outputs }).map((_, i) => (
                 <Circle
                   key={`out-${gate.id}-${i}`}
