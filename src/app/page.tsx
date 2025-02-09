@@ -7,7 +7,7 @@ import { GiLogicGateAnd, GiLogicGateNand, GiLogicGateNor, GiLogicGateNot, GiLogi
 
 type Component = {
   id: string;
-  type: "AND" | "OR" | "NOT" | "Button" | "Lamp";
+  type: "AND" | "OR" | "NOT" | "Button" | "Lamp" | string;
   inputs: number;
   outputs: number;
   x: number;
@@ -35,6 +35,7 @@ export default function Page() {
   const [isOverTrash, setIsOverTrash] = useState(false);
   const [search, setSearch] = useState("");
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
+  const [editComponent, setEditComponent] = useState<Component | null>(null);
 
   const defaultGates = {
     AND: { type: "AND", inputs: 2, outputs: 1, logic: (inputs: boolean[]) => [inputs[0] && inputs[1]] },
@@ -91,7 +92,7 @@ export default function Page() {
     });
 
     setComponents(newComponents);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inputChanged, simulationRunning]);
 
   const addComponent = (type: keyof typeof defaultGates) => {
@@ -136,6 +137,10 @@ export default function Page() {
             )
 
           )
+        }}
+        onContextMenu={(e) => {
+          e.evt.preventDefault();
+          setEditComponent(comp);
         }}
       >
         <Group
@@ -205,7 +210,8 @@ export default function Page() {
     { onClick: () => addComponent("NOR"), icon: <GiLogicGateNor />, title: "Porte NOR", color: "bg-red-600", type: "operator" },
     { onClick: () => addComponent("XNOR"), icon: <GiLogicGateNxor />, title: "Porte XNOR", color: "bg-red-600", type: "operator" },
     { onClick: () => addComponent("Button"), icon: <FaCheck />, title: "Boutton", color: "bg-purple-600", type: "input" },
-    { onClick: () => addComponent("Lamp"), icon: <FaLightbulb />, title: "Lampe de sortie", color: "bg-orange-600", type: "output" }
+    { onClick: () => addComponent("Lamp"), icon: <FaLightbulb />, title: "Lampe de sortie", color: "bg-orange-600", type: "output" },
+
   ]
 
   const groupedComponents = sideBarComponents.reduce((acc, comp) => {
@@ -233,6 +239,7 @@ export default function Page() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
+
 
         {
           expanded ? (
@@ -308,6 +315,88 @@ export default function Page() {
           {expanded && <span className="ml-3 text-sm font-medium whitespace-nowrap overflow-hidden">{"Simulation"}</span>}
         </button>
       </div>
+      {editComponent && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm z-50">
+
+          <div className="bg-gray-900 text-white p-6 rounded-2xl shadow-xl w-[350px]">
+            <h2 className="text-xl font-bold mb-4">{editComponent.type}</h2>
+            <div className="space-y-3">
+              <div>
+                <label className="text-sm font-medium">Nom</label>
+                <input
+                  type="text"
+                  placeholder="Nom du composant"
+                  value={editComponent.type}
+                  onChange={(e) =>
+                    setEditComponent((prev) => prev ? { ...prev, type: e.target.value } : null)
+                  }
+                  className="w-full mt-1 p-2 bg-gray-800 border border-gray-700 rounded-lg focus:ring focus:ring-blue-500 outline-none"
+                />
+              </div>
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <label className="text-sm font-medium">X</label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={800}
+                    value={editComponent.x}
+                    onChange={(e) =>
+                      setEditComponent((prev) => prev ? { ...prev, x: parseInt(e.target.value) } : null)
+                    }
+                    className="w-full mt-1 p-2 bg-gray-800 border border-gray-700 rounded-lg focus:ring focus:ring-blue-500 outline-none"
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="text-sm font-medium">Y</label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={500}
+                    value={editComponent.y}
+                    onChange={(e) =>
+                      setEditComponent((prev) => prev ? { ...prev, y: parseInt(e.target.value) } : null)
+                    }
+                    className="w-full mt-1 p-2 bg-gray-800 border border-gray-700 rounded-lg focus:ring focus:ring-blue-500 outline-none"
+                  />
+                </div>
+              </div>
+            </div>
+            {/* {editComponent.onClick && (
+              <button
+                onClick={() => {
+                  if (!editComponent.onClick) return
+                  setInputChanged(!inputChanged);
+                  editComponent?.onClick(editComponent);
+                }}
+                className="w-full p-2 mt-4 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition duration-200"
+              >
+                Toggle
+              </button>
+            )} */}
+            <div className="flex justify-between mt-4">
+              <button
+                onClick={() => {
+                  setComponents((prev) =>
+                    prev.map((c) => (c.id === editComponent.id ? editComponent : c))
+                  );
+                  setEditComponent(null);
+                }}
+                className="flex-1 p-2 bg-green-600 hover:bg-green-500 text-white rounded-lg transition duration-200 mx-1"
+              >
+                Save
+              </button>
+              <button
+                onClick={() => setEditComponent(null)}
+                className="flex-1 p-2 bg-red-600 hover:bg-red-500 text-white rounded-lg transition duration-200 mx-1"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
 
       <div className="flex-1 flex flex-col items-center gap-4 mt-auto mb-auto">
         <Stage width={800} height={500} className="border border-gray-300">
