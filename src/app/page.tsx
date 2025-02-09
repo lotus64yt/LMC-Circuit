@@ -1,145 +1,181 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Stage, Layer, Rect, Text, Group, Circle, Line } from "react-konva";
+import { FaArrowRight, FaArrowLeft, FaCheck, FaExclamationCircle, FaPlay, FaPause, FaLightbulb } from 'react-icons/fa';
 
-type LogicGate = {
+type Component = {
   id: string;
-  name: string;
+  type: "AND" | "OR" | "NOT" | "button" | "lamp";
   inputs: number;
   outputs: number;
   x: number;
   y: number;
-  logic: (inputs: boolean[]) => boolean[];
+  state?: boolean;
+  logic?: (inputs: boolean[]) => boolean[];
+  onClick?: (component: Component) => void;
 };
 
 type Connection = {
-  fromGate: string;
+  from: string;
+  to: string;
   fromOutput: number;
-  toGate: string;
   toInput: number;
 };
 
-const defaultGates = {
-  AND: {
-    name: "AND",
-    inputs: 2,
-    outputs: 1,
-    logic: (inputs: boolean[]) => [inputs[0] && inputs[1]],
-  },
-  OR: {
-    name: "OR",
-    inputs: 2,
-    outputs: 1,
-    logic: (inputs: boolean[]) => [inputs[0] || inputs[1]],
-  },
-  NOT: {
-    name: "NOT",
-    inputs: 1,
-    outputs: 1,
-    logic: (inputs: boolean[]) => [!inputs[0]],
-  },
-};
-
 export default function Page() {
-  const [gates, setGates] = useState<LogicGate[]>([]);
+  const [tempConnection, setTempConnection] = useState<{ from: string; fromOutput: number } | null>(null);
+  const [simulationRunning, setSimulationRunning] = useState(false);
+  const [components, setComponents] = useState<Component[]>([]);
   const [connections, setConnections] = useState<Connection[]>([]);
-  const [tempConnection, setTempConnection] = useState<{ fromGate: string; fromOutput: number; x: number; y: number } | null>(null);
+  const [ inputChanged, setInputChanged ] = useState(false);
 
-  const addGate = (type: keyof typeof defaultGates) => {
-    const newGate: LogicGate = {
-      id: crypto.randomUUID(),
-      ...defaultGates[type],
-      x: 100,
-      y: 100,
-    };
-    setGates([...gates, newGate]);
+  const defaultGates = {
+    AND: { type: "AND", inputs: 2, outputs: 1, logic: (inputs: boolean[]) => [inputs[0] && inputs[1]] },
+    OR: { type: "OR", inputs: 2, outputs: 1, logic: (inputs: boolean[]) => [inputs[0] || inputs[1]] },
+    NOT: { type: "NOT", inputs: 1, outputs: 1, logic: (inputs: boolean[]) => [!inputs[0]] },
+    button: {
+      type: "button", inputs: 0, outputs: 1, onClick: (component: Component) => {
+        console.log("Button clicked");
+        setComponents((prev) => prev.map((c) => c.id === component.id ? { ...c, state: !c.state } : c))
+      }
+    },
+    lamp: { type: "lamp", inputs: 1, outputs: 0 },
   };
 
-  const GRID_SIZE = 10;
-  const updateGatePosition = (id: string, x: number, y: number) => {
-    const snappedX = Math.round(x / GRID_SIZE) * GRID_SIZE;
-    const snappedY = Math.round(y / GRID_SIZE) * GRID_SIZE;
+  useEffect(() => {
+    if (!simulationRunning) return;
 
-    setGates((prevGates) =>
-      prevGates.map((gate) => (gate.id === id ? { ...gate, x: snappedX, y: snappedY } : gate))
+    const newComponents = components.map((comp) => {
+      if (comp.logic) {
+        const inputs = connections
+          .filter((conn) => conn.to === comp.id)
+          .map((conn) => components.find((c) => c.id === conn.from)?.state || false);
+
+        comp.state = comp.logic(inputs)[0]; // Assume logic returns a boolean value
+      }
+      return comp;
+    });
+
+    setComponents(newComponents);
+  }, [inputChanged, simulationRunning]);
+
+  const addComponent = (type: keyof typeof defaultGates | "button" | "lamp") => {
+    const newComponent: Component = {
+      id: crypto.randomUUID(),
+      type: type as "AND" | "OR" | "NOT" | "button" | "lamp",
+      inputs: defaultGates[type as keyof typeof defaultGates]?.inputs || 0,
+      outputs: defaultGates[type as keyof typeof defaultGates]?.outputs || 0,
+      x: 100,
+      y: 100,
+      state: type === "button" ? false : undefined,
+      ...(type in defaultGates ? { logic: defaultGates[type as keyof typeof defaultGates]?.logic } : {}),
+      ...(type in defaultGates ? { onClick: defaultGates[type as keyof typeof defaultGates]?.onClick } : {}),
+    };
+    setComponents([...components, newComponent]);
+  };
+
+  const renderComponent = (comp: Component) => {
+    return (
+      <Group
+        key={comp.id}
+        draggable
+        x={comp.x}
+        y={comp.y}
+        onDragEnd={(e) =>
+          setComponents((prev) =>
+            prev.map((c) =>
+              c.id === comp.id ? { ...c, x: e.target.x(), y: e.target.y() } : c
+            )
+          )
+        }
+      >
+        <Group
+          onClick={() => {
+            if (comp.onClick) {
+              console.log("Component clicked");
+              setInputChanged(!inputChanged);
+              comp.onClick(comp);
+            }
+          }}
+        >
+          <Rect width={80} height={50} fill={comp.state ? "green" : "white"} stroke="black" strokeWidth={2} cornerRadius={8} />
+          <Text text={comp.type} fontSize={16} fill="black" align="center" width={80} height={50} verticalAlign="middle" />
+        </Group>
+        {Array.from({ length: comp.inputs }).map((_, i) => (
+          <Circle
+            key={`in-${comp.id}-${i}`}
+            x={-10}
+            y={(i + 1) * 15}
+            radius={5}
+            fill="blue"
+            onClick={() => completeConnection(comp.id, i)}
+          />
+        ))}
+        {Array.from({ length: comp.outputs }).map((_, i) => (
+          <Circle
+            key={`out-${comp.id}-${i}`}
+            x={90}
+            y={(i + 1) * 15}
+            radius={5}
+            fill="red"
+            onClick={() => startConnection(comp.id, i)}
+          />
+        ))}
+      </Group>
     );
   };
 
-  const startConnection = (fromGate: string, fromOutput: number, x: number, y: number) => {
-    setTempConnection({ fromGate, fromOutput, x, y });
+  const startConnection = (from: string, fromOutput: number) => {
+    setTempConnection({ from, fromOutput });
   };
 
-  const completeConnection = (toGate: string, toInput: number) => {
+  const completeConnection = (to: string, toInput: number) => {
     if (tempConnection) {
-      setConnections([...connections, { ...tempConnection, toGate, toInput }]);
+      setConnections([...connections, { ...tempConnection, to, toInput }]);
       setTempConnection(null);
+    } else {
+      console.log("No temp connection");
     }
   };
 
   return (
-    <div className="flex flex-col items-center gap-4">
-      <div className="flex gap-2">
-        <button onClick={() => addGate("AND")} className="p-2 bg-blue-500 text-white rounded">
-          Ajouter AND
-        </button>
-        <button onClick={() => addGate("OR")} className="p-2 bg-green-500 text-white rounded">
-          Ajouter OR
-        </button>
-        <button onClick={() => addGate("NOT")} className="p-2 bg-red-500 text-white rounded">
-          Ajouter NOT
-        </button>
+    <div className="flex h-screen">
+      <div className="w-16 bg-gray-900 bg-opacity-80 shadow-lg backdrop-blur-md text-white flex flex-col items-center py-4 space-y-3 rounded-xl">
+        {[{ onClick: () => addComponent("AND"), icon: <FaArrowRight />, title: "Porte AND", color: "bg-blue-600" },
+        { onClick: () => addComponent("OR"), icon: <FaArrowLeft />, title: "Porte OR", color: "bg-green-600" },
+        { onClick: () => addComponent("NOT"), icon: <FaExclamationCircle />, title: "Porte NOT", color: "bg-red-600" },
+        { onClick: () => addComponent("button"), icon: <FaCheck />, title: "Bouton poussoir", color: "bg-purple-600" },
+        { onClick: () => addComponent("lamp"), icon: <FaLightbulb />, title: "Lampe de sortie", color: "bg-orange-600" },
+        { onClick: () => setSimulationRunning(!simulationRunning), icon: simulationRunning ? <FaPause /> : <FaPlay />, title: "Simulation", color: "bg-yellow-600" }].map(({ onClick, icon, title, color }, index) => (
+          <button
+            key={index}
+            onClick={onClick}
+            className={`p-3 rounded-lg ${color} hover:brightness-110 focus:ring-2 focus:ring-white transition-all`}
+            title={title}
+          >
+            {icon}
+          </button>
+        ))}
       </div>
 
-      <Stage width={800} height={500} className="border border-gray-300">
-        <Layer>
-          {connections.map((conn, index) => {
-            const fromGate = gates.find((g) => g.id === conn.fromGate);
-            const toGate = gates.find((g) => g.id === conn.toGate);
-            if (!fromGate || !toGate) return null;
-            const fromX = fromGate.x + 90;
-            const fromY = fromGate.y + (conn.fromOutput + 1) * 15;
-            const toX = toGate.x - 10;
-            const toY = toGate.y + (conn.toInput + 1) * 15;
-            return <Line key={index} points={[fromX, fromY, toX, toY]} stroke="white" strokeWidth={2} />;
-          })}
-
-          {gates.map((gate) => (
-            <Group
-              key={gate.id}
-              draggable
-              x={gate.x}
-              y={gate.y}
-              onDragEnd={(e) => updateGatePosition(gate.id, e.target.x(), e.target.y())}
-            >
-              <Rect width={80} height={50} fill="white" stroke="black" strokeWidth={2} cornerRadius={8} />
-              <Text text={gate.name} fontSize={16} fill="black" align="center" width={80} height={50} verticalAlign="middle" />
-
-              {Array.from({ length: gate.inputs }).map((_, i) => (
-                <Circle
-                  key={`in-${gate.id}-${i}`}
-                  x={-10}
-                  y={(i + 1) * 15}
-                  radius={5}
-                  fill="blue"
-                  onClick={() => completeConnection(gate.id, i)}
-                />
-              ))}
-
-              {Array.from({ length: gate.outputs }).map((_, i) => (
-                <Circle
-                  key={`out-${gate.id}-${i}`}
-                  x={90}
-                  y={(i + 1) * 15}
-                  radius={5}
-                  fill="red"
-                  onClick={() => startConnection(gate.id, i, gate.x + 90, gate.y + (i + 1) * 15)}
-                />
-              ))}
-            </Group>
-          ))}
-        </Layer>
-      </Stage>
+      <div className="flex-1 flex flex-col items-center gap-4">
+        <Stage width={800} height={500} className="border border-gray-300">
+          <Layer>
+            {components.map(renderComponent)}
+            {connections.map((conn, index) => {
+              const from = components.find((c) => c.id === conn.from);
+              const to = components.find((c) => c.id === conn.to);
+              if (!from || !to) return null;
+              const fromX = from.x + 90;
+              const fromY = from.y + (conn.fromOutput + 1) * 15;
+              const toX = to.x - 10;
+              const toY = to.y + (conn.toInput + 1) * 15;
+              return <Line key={index} points={[fromX, fromY, toX, toY]} stroke={from.state ? "lime" : "white"} strokeWidth={2} />;
+            })}
+          </Layer>
+        </Stage>
+      </div>
     </div>
   );
 }
