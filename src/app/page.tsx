@@ -2,12 +2,14 @@
 
 import React, { useEffect, useState } from "react";
 import { Stage, Layer, Rect, Text, Group, Circle, Line, Path } from "react-konva";
-import { FaCheck, FaPlay, FaPause, FaLightbulb, FaArrowRight } from 'react-icons/fa';
+import { FaCheck, FaPlay, FaPause, FaLightbulb, FaArrowRight/*, FaPlus*/ } from 'react-icons/fa';
 import { GiLogicGateAnd, GiLogicGateNand, GiLogicGateNor, GiLogicGateNot, GiLogicGateNxor, GiLogicGateOr, GiLogicGateXor } from "react-icons/gi";
+import { SiCustomink } from "react-icons/si";
 
 type Component = {
   id: string;
-  type: "AND" | "OR" | "NOT" | "Button" | "Lamp" | string;
+  type: "AND" | "OR" | "NOT" | "Button" | "Lamp" | "Screen7Segment" | string;
+  display?: (intpus: boolean[]) => React.ReactNode;
   inputs: number;
   outputs: number;
   x: number;
@@ -16,6 +18,13 @@ type Component = {
   logic?: (inputs: boolean[]) => boolean[];
   onClick?: (component: Component) => void;
 };
+
+type tempComponent = {
+  type: "AND" | "OR" | "NOT" | "Button" | "Lamp" | string;
+  inputs: number;
+  outputs: number;
+  logic?: (inputs: boolean[]) => boolean[];
+}
 
 type Connection = {
   from: string;
@@ -36,6 +45,8 @@ export default function Page() {
   const [search, setSearch] = useState("");
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
   const [editComponent, setEditComponent] = useState<Component | null>(null);
+  const [customBlocks, setCustomBlocks] = useState<{ [key: string]: Component }>({});
+  const [editCustomBlock, setEditCustomBlock] = useState<tempComponent | null>(null);
 
   const defaultGates = {
     AND: { type: "AND", inputs: 2, outputs: 1, logic: (inputs: boolean[]) => [inputs[0] && inputs[1]] },
@@ -48,6 +59,58 @@ export default function Page() {
     Button: {
       type: "Button", inputs: 0, outputs: 1, onClick: (component: Component) => {
         setComponents((prev) => prev.map((c) => c.id === component.id ? { ...c, state: !c.state } : c))
+      }
+    },
+    Screen7Segment: {
+      type: "Screen7Segment", inputs: 8, outputs: 0, display: (inputs: boolean[]) => {
+        const width = 80;
+        const height = 138;
+        const margin = 5;
+
+        const segmentPositions = [
+          { x: 15 + margin, y: 0, w: 50 - margin * 2, h: 12 },            
+          { x: 65, y: 6 + margin, w: 12, h: 55 - margin * 2 },  
+          { x: 65, y: 74 + margin, w: 12, h: 55 - margin * 2 }, 
+          { x: 15 + margin, y: 126, w: 50 - margin * 2, h: 12 },
+          { x: 3, y: 74 + margin, w: 12, h: 55 - margin * 2 },  
+          { x: 3, y: 6 + margin, w: 12, h: 55 - margin * 2 },   
+          { x: 15 + margin, y: 67, w: 50 - margin * 2, h: 12 },         ];
+
+        return (
+          <Group>
+            <Rect
+              width={width}
+              height={height}
+              fill="white"
+              cornerRadius={12}
+              strokeWidth={3}
+              shadowBlur={10}
+            />
+
+            {segmentPositions.map(({ x, y, w, h }, index) => (
+              <Rect
+                key={index}
+                x={x}
+                y={y}
+                width={w}
+                height={h}
+                fill={inputs[index] ? "#ff3b3b" : "#222"}
+                cornerRadius={4}
+                shadowBlur={inputs[index] ? 8 : 0}
+                shadowColor="red"
+              />
+            ))}
+
+            <Circle
+              x={72}
+              y={130}
+              radius={6}
+              fill={inputs[7] ? "#ff3b3b" : "#222"}
+              shadowBlur={inputs[7] ? 8 : 0}
+              shadowColor="red"
+            />
+          </Group>
+        )
       }
     },
     Lamp: { type: "Lamp", inputs: 1, outputs: 0 },
@@ -106,6 +169,7 @@ export default function Page() {
     const newComponent: Component = {
       id: crypto.randomUUID(),
       type: type as "AND" | "OR" | "NOT" | "Button" | "Lamp",
+      display: type in defaultGates && 'display' in defaultGates[type] ? defaultGates[type].display as (inputs: boolean[]) => React.ReactNode : undefined,
       inputs: defaultGates[type]?.inputs || 0,
       outputs: defaultGates[type]?.outputs || 0,
       x: baseX + offset,
@@ -118,6 +182,26 @@ export default function Page() {
     setComponents([...components, newComponent]);
   };
 
+  const addCustomBlock = (type: string, inputs: number, outputs: number, logic: (inputs: boolean[]) => boolean[]) => {
+    const baseX = 100;
+    const baseY = 100;
+
+    const isOccupied = components.some((comp) => comp.x === baseX && comp.y === baseY);
+
+    const offset = isOccupied ? 20 * components.length : 0;
+
+    const newComponent: Component = {
+      id: crypto.randomUUID(),
+      type: type,
+      inputs: inputs,
+      outputs: outputs,
+      x: baseX + offset,
+      y: baseY + offset,
+      logic: logic,
+    };
+
+    setComponents([...components, newComponent]);
+  };
 
   const renderComponent = (comp: Component) => {
     return (
@@ -151,8 +235,17 @@ export default function Page() {
             }
           }}
         >
-          <Rect width={80} height={50} fill={comp.state ? "green" : "white"} stroke="black" strokeWidth={2} cornerRadius={8} />
-          <Text text={comp.type} fontSize={16} fill="black" align="center" width={80} height={50} verticalAlign="middle" />
+          <Rect width={80} height={comp.inputs > 2 || comp.outputs > 2 ? 50 + 11 * (comp.inputs > comp.outputs ? comp.inputs : comp.outputs) : 50} fill={comp.state ? "green" : "white"} stroke="black" strokeWidth={2} cornerRadius={8} />
+          {
+            comp.display ? (
+              comp.display([
+                ...Array.from({ length: comp.inputs }).map((_, i) => connections.some((conn) => conn.to === comp.id && conn.toInput === i && components.find((c) => c.id === conn.from)?.state)),
+              ])
+            ) : (
+              <Text text={comp.type} fontSize={16} fill="black" align="center" width={80} height={50} verticalAlign="middle" />
+            )
+          }
+
         </Group>
         {
           Array.from({ length: comp.inputs }).map((_, i) => (
@@ -211,7 +304,25 @@ export default function Page() {
     { onClick: () => addComponent("XNOR"), icon: <GiLogicGateNxor />, title: "Porte XNOR", color: "bg-red-600", type: "operator" },
     { onClick: () => addComponent("Button"), icon: <FaCheck />, title: "Boutton", color: "bg-purple-600", type: "input" },
     { onClick: () => addComponent("Lamp"), icon: <FaLightbulb />, title: "Lampe de sortie", color: "bg-orange-600", type: "output" },
-
+    { onClick: () => addComponent("Screen7Segment"), icon: <FaLightbulb />, title: "Afficheur 7 segments", color: "bg-orange-600", type: "output" },
+    ...Object.values(customBlocks).map((block) => ({
+      onClick: () => {
+        setComponents((prev) => [
+          ...prev,
+          {
+            ...block,
+            id: crypto.randomUUID(),
+            x: 100,
+            y: 100,
+            logic: block.logic
+          }
+        ]);
+      },
+      icon: <SiCustomink />,
+      title: block.type,
+      color: "bg-purple-600",
+      type: "custom",
+    })),
   ]
 
   const groupedComponents = sideBarComponents.reduce((acc, comp) => {
@@ -223,6 +334,15 @@ export default function Page() {
   const toggleSection = (type: string) => {
     setOpenSections((prev) => ({ ...prev, [type]: !prev[type] }));
   };
+
+  const deleteCustomBlock = (type: string) => {
+    setCustomBlocks((prev) => {
+      const newBlocks = { ...prev };
+      delete newBlocks[type];
+      return newBlocks;
+    });
+    setEditCustomBlock(null);
+  }
 
   return (
     <div className="flex h-screen">
@@ -304,6 +424,24 @@ export default function Page() {
           )
         }
 
+        {/* <button
+          onClick={() => {
+            setEditCustomBlock({
+              type: "Custom Block",
+              inputs: 0,
+              outputs: 0,
+              logic: () => [false]
+            })
+          }}
+          className="flex items-center space-x-2 w-full rounded-lg transition-all duration-300 justify-start"
+          title={"Create Custom Block"}
+        >
+          <span className={`p-3 rounded-lg bg-green-600 hover:brightness-110 focus:ring-2 focus:ring-white transition-all`}>
+            <FaPlus />
+          </span>
+          {expanded && <span className="ml-3 text-sm font-medium whitespace-nowrap overflow-hidden">{"Create Custom Block"}</span>}
+        </button> */}
+
         <button
           onClick={() => setSimulationRunning(!simulationRunning)}
           className="flex items-center space-x-2 w-full rounded-lg transition-all duration-300 justify-start"
@@ -315,11 +453,85 @@ export default function Page() {
           {expanded && <span className="ml-3 text-sm font-medium whitespace-nowrap overflow-hidden">{"Simulation"}</span>}
         </button>
       </div>
+      {editCustomBlock && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm z-50">
+
+          <div className="bg-gray-900 text-white p-6 rounded-2xl shadow-xl w-[550px]">
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-bold mb-4">{editCustomBlock.type}</h2>
+              <button
+                onClick={() => {
+                  deleteCustomBlock(editCustomBlock.type);
+                  setEditComponent(null);
+                }}
+                className="p-2 bg-red-600 hover:bg-red-500 text-white rounded-lg transition duration-200"
+              >
+                Supprimer
+              </button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="text-sm font-medium">Nom</label>
+                <input
+                  type="text"
+                  placeholder="Nom du composant"
+                  value={editCustomBlock.type}
+                  onChange={(e) => {
+                    if (customBlocks[e.target.value]) {
+                      document.getElementById("warning-customBlock-name")?.removeAttribute("hidden");
+                      return;
+                    } else {
+                      document.getElementById("warning-customBlock-name")?.setAttribute("hidden", "true");
+                    }
+                    setEditCustomBlock((prev) => prev ? { ...prev, type: e.target.value } : null)
+                  }}
+                  className="w-full mt-1 p-2 bg-gray-800 border border-gray-700 rounded-lg focus:ring focus:ring-blue-500 outline-none"
+                />
+                <p className="text-xs text-gray-400" hidden id={"warning-customBlock-name"}>Le nom doit être unique</p>
+              </div>
+
+
+
+            </div>
+
+            <div className="flex justify-between mt-4">
+              <button
+                onClick={() => {
+                  setEditCustomBlock(null);
+                  if (editCustomBlock.logic) {
+                    addCustomBlock(editCustomBlock.type, editCustomBlock.inputs, editCustomBlock.outputs, editCustomBlock.logic);
+                  }
+                }}
+                className="flex-1 p-2 bg-green-600 hover:bg-green-500 text-white rounded-lg transition duration-200 mx-1"
+              >
+                Save
+              </button>
+              <button
+                onClick={() => setEditCustomBlock(null)}
+                className="flex-1 p-2 bg-red-600 hover:bg-red-500 text-white rounded-lg transition duration-200 mx-1"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {editComponent && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm z-50">
 
           <div className="bg-gray-900 text-white p-6 rounded-2xl shadow-xl w-[350px]">
-            <h2 className="text-xl font-bold mb-4">{editComponent.type}</h2>
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-bold mb-4">{editComponent.type}</h2>
+              <button
+                onClick={() => {
+                  setComponents((prev) => prev.filter((c) => c.id !== editComponent.id));
+                  setEditComponent(null);
+                }}
+                className="p-2 bg-red-600 hover:bg-red-500 text-white rounded-lg transition duration-200"
+              >
+                Supprimer
+              </button>
+            </div>
             <div className="space-y-3">
               <div>
                 <label className="text-sm font-medium">Nom</label>
@@ -425,26 +637,24 @@ export default function Page() {
                   setIsOverTrash(false);
                 }}
               >
-                {/* Couvercle */}
                 <Path
                   data="M10,5 H54 A3,3 0 0,1 57,8 V12 H7 V8 A3,3 0 0,1 10,5 Z"
                   fill="#333"
                   stroke="#222"
                   strokeWidth={2}
                   offsetX={isOverTrash ? -2 : 0}
-                  rotation={isOverTrash ? -15 : 0} // Animation du couvercle
+                  rotation={isOverTrash ? -15 : 0}
                   x={0}
-                  y={isOverTrash ? -5 : 0} // Légère élévation
+                  y={isOverTrash ? -5 : 0}
                   duration={300}
                 />
-                {/* Corps de la poubelle */}
+
                 <Path
                   data="M15,15 H49 V65 A5,5 0 0,1 44,70 H20 A5,5 0 0,1 15,65 Z"
                   fill="#444"
                   stroke="#222"
                   strokeWidth={2}
                 />
-                {/* Lignes verticales */}
                 <Path data="M20,18 V60" stroke="#222" strokeWidth={2} />
                 <Path data="M30,18 V60" stroke="#222" strokeWidth={2} />
                 <Path data="M40,18 V60" stroke="#222" strokeWidth={2} />
