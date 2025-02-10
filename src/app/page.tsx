@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Stage, Layer, Rect, Text, Group, Circle, Line, Path } from "react-konva";
+import { Stage, Layer, Rect, Text, Group, Circle, Path } from "react-konva";
 import { FaCheck, FaPlay, FaPause, FaLightbulb, FaArrowRight/*, FaPlus*/ } from 'react-icons/fa';
 import { GiLogicGateAnd, GiLogicGateNand, GiLogicGateNor, GiLogicGateNot, GiLogicGateNxor, GiLogicGateOr, GiLogicGateXor } from "react-icons/gi";
 import { SiCustomink } from "react-icons/si";
@@ -68,13 +68,13 @@ export default function Page() {
         const margin = 5;
 
         const segmentPositions = [
-          { x: 15 + margin, y: 0, w: 50 - margin * 2, h: 12 },            
-          { x: 65, y: 6 + margin, w: 12, h: 55 - margin * 2 },  
-          { x: 65, y: 74 + margin, w: 12, h: 55 - margin * 2 }, 
+          { x: 15 + margin, y: 0, w: 50 - margin * 2, h: 12 },
+          { x: 65, y: 6 + margin, w: 12, h: 55 - margin * 2 },
+          { x: 65, y: 74 + margin, w: 12, h: 55 - margin * 2 },
           { x: 15 + margin, y: 126, w: 50 - margin * 2, h: 12 },
-          { x: 3, y: 74 + margin, w: 12, h: 55 - margin * 2 },  
-          { x: 3, y: 6 + margin, w: 12, h: 55 - margin * 2 },   
-          { x: 15 + margin, y: 67, w: 50 - margin * 2, h: 12 },         ];
+          { x: 3, y: 74 + margin, w: 12, h: 55 - margin * 2 },
+          { x: 3, y: 6 + margin, w: 12, h: 55 - margin * 2 },
+          { x: 15 + margin, y: 67, w: 50 - margin * 2, h: 12 },];
 
         return (
           <Group>
@@ -207,13 +207,15 @@ export default function Page() {
     return (
       <Group
         key={comp.id}
-        draggable
+        draggable={!simulationRunning}
         x={comp.x}
         y={comp.y}
         onDragStart={() => {
+          if (simulationRunning) return;
           setIsDragging(comp.id);
         }}
         onDragEnd={(e) => {
+          if (simulationRunning) return;
           setIsDragging(false)
           setComponents((prev) =>
             prev.map((c) =>
@@ -223,13 +225,14 @@ export default function Page() {
           )
         }}
         onContextMenu={(e) => {
+          if (simulationRunning) return;
           e.evt.preventDefault();
           setEditComponent(comp);
         }}
       >
         <Group
           onClick={() => {
-            if (comp.onClick) {
+            if (comp.onClick && simulationRunning) {
               setInputChanged(!inputChanged);
               comp.onClick(comp);
             }
@@ -256,7 +259,10 @@ export default function Page() {
               y={(i + 1) * 15}
               radius={5}
               fill="blue"
-              onClick={() => completeConnection(comp.id, i)}
+              onClick={() => {
+                if (simulationRunning) return;
+                completeConnection(comp.id, i)
+              }}
               onMouseEnter={() => (document.body.style.cursor = "pointer")}
               onMouseLeave={() => (document.body.style.cursor = "default")}
             />
@@ -270,7 +276,10 @@ export default function Page() {
               y={(i + 1) * 15}
               radius={5}
               fill="red"
-              onClick={() => startConnection(comp.id, i)}
+              onClick={() => {
+                if (simulationRunning) return;
+                startConnection(comp.id, i)
+              }}
               onMouseEnter={() => (document.body.style.cursor = "pointer")}
               onMouseLeave={() => (document.body.style.cursor = "default")}
             />
@@ -618,11 +627,24 @@ export default function Page() {
               const from = components.find((c) => c.id === conn.from);
               const to = components.find((c) => c.id === conn.to);
               if (!from || !to) return null;
+
               const fromX = from.x + 90;
               const fromY = from.y + (conn.fromOutput + 1) * 15;
               const toX = to.x - 10;
               const toY = to.y + (conn.toInput + 1) * 15;
-              return <Line key={index} points={[fromX, fromY, toX, toY]} stroke={from.state ? "lime" : "white"} strokeWidth={2} />;
+
+              const controlX = (fromX + toX) / 2; 
+              const controlY = fromY;
+
+              return (
+                <Path
+                  key={index}
+                  data={`M ${fromX},${fromY} Q ${controlX},${controlY} ${toX},${toY}`}
+                  stroke={from.state ? "lime" : "white"}
+                  strokeWidth={2}
+                  fill="transparent"
+                />
+              );
             })}
           </Layer>
           <Layer>
