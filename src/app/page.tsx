@@ -120,14 +120,14 @@ export default function Page() {
     if (!simulationRunning) return;
 
     const newComponents = components.map((comp) => {
-      if (comp.logic || comp.type === "Button") {
+      if (comp.logic || comp.onClick) {
         const inputs = connections
           .filter((conn) => conn.to === comp.id)
           .map((conn) => components.find((c) => c.id === conn.from)?.state || false);
 
         if (comp.logic) {
           comp.state = comp.logic(inputs)[0];
-        } else if (comp.type === "Button") {
+        } else if (comp.onClick) {
           comp.state = comp.state;
         }
         if (comp.state) {
