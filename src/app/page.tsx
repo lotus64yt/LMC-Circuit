@@ -5,6 +5,7 @@ import { Stage, Layer, Rect, Text, Group, Circle, Path } from "react-konva";
 import { FaCheck, FaPlay, FaPause, FaLightbulb, FaArrowRight/*, FaPlus*/ } from 'react-icons/fa';
 import { GiLogicGateAnd, GiLogicGateNand, GiLogicGateNor, GiLogicGateNot, GiLogicGateNxor, GiLogicGateOr, GiLogicGateXor } from "react-icons/gi";
 import { SiCustomink } from "react-icons/si";
+import { MdSwitchRight } from "react-icons/md";
 
 type Component = {
   id: string;
@@ -56,6 +57,7 @@ export default function Page() {
     NAND: { type: "NAND", inputs: 2, outputs: 1, logic: (inputs: boolean[]) => [!(inputs[0] && inputs[1]) ? 1 : 0] },
     NOR: { type: "NOR", inputs: 2, outputs: 1, logic: (inputs: boolean[]) => [!(inputs[0] || inputs[1])] },
     XNOR: { type: "XNOR", inputs: 2, outputs: 1, logic: (inputs: boolean[]) => [inputs[0] === inputs[1]] },
+    TRANSISTOR: { type: "TRANSISTOR", inputs: 2, outputs: 1, logic: (inputs: boolean[]) => [inputs[0] && inputs[1] ? inputs[1] : false] },
     Button: {
       type: "Button", inputs: 0, outputs: 1, onClick: (component: Component) => {
         setComponents((prev) => prev.map((c) => c.id === component.id ? { ...c, state: !c.state } : c))
@@ -214,16 +216,26 @@ export default function Page() {
           if (simulationRunning) return;
           setIsDragging(comp.id);
         }}
-        onDragEnd={(e) => {
+        onDragMove={(e) => {
           if (simulationRunning) return;
-          setIsDragging(false)
-          setComponents((prev) =>
-            prev.map((c) =>
-              c.id === comp.id ? { ...c, x: e.target.x(), y: e.target.y() } : c
-            )
-
-          )
+          if (isDragging === comp.id) {
+            setComponents((prev) =>
+              prev.map((c) =>
+                c.id === comp.id ? { ...c, x: e.target.x(), y: e.target.y() } : c
+              )
+            );
+          }
         }}
+        // onDragEnd={(e) => {
+        //   if (simulationRunning) return;
+        //   setIsDragging(false)
+        //   setComponents((prev) =>
+        //     prev.map((c) =>
+        //       c.id === comp.id ? { ...c, x: e.target.x(), y: e.target.y() } : c
+        //     )
+
+        //   )
+        // }}
         onContextMenu={(e) => {
           if (simulationRunning) return;
           e.evt.preventDefault();
@@ -311,6 +323,7 @@ export default function Page() {
     { onClick: () => addComponent("NAND"), icon: <GiLogicGateNand />, title: "Porte NAND", color: "bg-red-600", type: "operator" },
     { onClick: () => addComponent("NOR"), icon: <GiLogicGateNor />, title: "Porte NOR", color: "bg-red-600", type: "operator" },
     { onClick: () => addComponent("XNOR"), icon: <GiLogicGateNxor />, title: "Porte XNOR", color: "bg-red-600", type: "operator" },
+    { onClick: () => addComponent("TRANSISTOR"), icon: <MdSwitchRight />, title: "Transistor", color: "bg-lime-900", type: "gate" },
     { onClick: () => addComponent("Button"), icon: <FaCheck />, title: "Boutton", color: "bg-purple-600", type: "input" },
     { onClick: () => addComponent("Lamp"), icon: <FaLightbulb />, title: "Lampe de sortie", color: "bg-orange-600", type: "output" },
     { onClick: () => addComponent("Screen7Segment"), icon: <FaLightbulb />, title: "Afficheur 7 segments", color: "bg-orange-600", type: "output" },
