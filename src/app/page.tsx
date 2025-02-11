@@ -245,9 +245,24 @@ export default function Page() {
     return (
       <Group
         key={comp.id}
-        draggable={!simulationRunning}
         x={comp.x}
         y={comp.y}
+        onContextMenu={(e) => {
+          if (simulationRunning) return;
+          e.evt.preventDefault();
+          setEditComponent(comp);
+        }}
+        draggable={!simulationRunning}
+        onDragMove={(e) => {
+          if (simulationRunning) return;
+          if (isDragging === comp.id) {
+            setComponents((prev) =>
+              prev.map((c) =>
+                c.id === comp.id ? { ...c, x: e.target.x(), y: e.target.y() } : c
+              )
+            );
+          }
+        }}
         onDragStart={() => {
           if (simulationRunning) return;
           setIsDragging(comp.id);
@@ -255,11 +270,6 @@ export default function Page() {
         onDragEnd={() => {
           if (simulationRunning) return;
           setIsDragging(false)
-        }}
-        onContextMenu={(e) => {
-          if (simulationRunning) return;
-          e.evt.preventDefault();
-          setEditComponent(comp);
         }}
       >
         <Group
@@ -271,16 +281,6 @@ export default function Page() {
           }}
         >
           <Rect
-            onDragMove={(e) => {
-              if (simulationRunning) return;
-              if (isDragging === comp.id) {
-                setComponents((prev) =>
-                  prev.map((c) =>
-                    c.id === comp.id ? { ...c, x: e.target.x(), y: e.target.y() } : c
-                  )
-                );
-              }
-            }}
             width={80}
             height={comp.inputs > 2 || comp.outputs > 2 ? 50 + 11 * (comp.inputs > comp.outputs ? comp.inputs : comp.outputs) : 50}
             fill={comp.state ? "green" : "white"}
@@ -309,7 +309,11 @@ export default function Page() {
               radius={5}
               fill="blue"
               onClick={() => {
-                if (simulationRunning) return;
+                if (simulationRunning || !tempConnection) return;
+                completeConnection(comp.id, i)
+              }}
+              onMouseUp={() => {
+                if (simulationRunning || !tempConnection) return;
                 completeConnection(comp.id, i)
               }}
               onMouseEnter={() => (document.body.style.cursor = "pointer")}
@@ -325,9 +329,10 @@ export default function Page() {
               y={(i + 1) * 15}
               radius={5}
               fill="red"
-              onClick={() => {
+              onMouseDown={(evt) => {
+                evt.cancelBubble = true; // Empêche la propagation du clic au Group parent
                 if (simulationRunning) return;
-                startConnection(comp.id, i)
+                startConnection(comp.id, i);
               }}
               onMouseEnter={() => (document.body.style.cursor = "pointer")}
               onMouseLeave={() => (document.body.style.cursor = "default")}
@@ -335,7 +340,7 @@ export default function Page() {
           ))
         }
 
-      </Group >
+      </Group>
     );
   };
 
