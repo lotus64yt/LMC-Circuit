@@ -66,11 +66,13 @@ export default function Page() {
       });
     };
 
-    const updateMousePos = (e: MouseEvent) => {
-      setMousePos({ x: e.clientX, y: e.clientY });
-    }
-
-    window.addEventListener("mousemove", updateMousePos);
+    window.addEventListener("mousemove", () => {
+      const pointer = stageRef.current?.getRelativePointerPosition();
+      setMousePos({
+        x: pointer?.x || 0,
+        y: pointer?.y || 0
+      });
+    })
     window.addEventListener("resize", updateTrashPos);
     return () => window.removeEventListener("resize", updateTrashPos);
   }, []);
@@ -195,7 +197,7 @@ export default function Page() {
     const pointer = stage.getPointerPosition();
 
     if (!pointer) return;
-    
+
     const baseX = (pointer.x - position.x) / scale;
     const baseY = (pointer.y - position.y) / scale;
 
@@ -250,16 +252,6 @@ export default function Page() {
           if (simulationRunning) return;
           setIsDragging(comp.id);
         }}
-        onDragMove={(e) => {
-          if (simulationRunning) return;
-          if (isDragging === comp.id) {
-            setComponents((prev) =>
-              prev.map((c) =>
-                c.id === comp.id ? { ...c, x: e.target.x(), y: e.target.y() } : c
-              )
-            );
-          }
-        }}
         onDragEnd={() => {
           if (simulationRunning) return;
           setIsDragging(false)
@@ -278,7 +270,24 @@ export default function Page() {
             }
           }}
         >
-          <Rect width={80} height={comp.inputs > 2 || comp.outputs > 2 ? 50 + 11 * (comp.inputs > comp.outputs ? comp.inputs : comp.outputs) : 50} fill={comp.state ? "green" : "white"} stroke="black" strokeWidth={2} cornerRadius={8} />
+          <Rect
+            onDragMove={(e) => {
+              if (simulationRunning) return;
+              if (isDragging === comp.id) {
+                setComponents((prev) =>
+                  prev.map((c) =>
+                    c.id === comp.id ? { ...c, x: e.target.x(), y: e.target.y() } : c
+                  )
+                );
+              }
+            }}
+            width={80}
+            height={comp.inputs > 2 || comp.outputs > 2 ? 50 + 11 * (comp.inputs > comp.outputs ? comp.inputs : comp.outputs) : 50}
+            fill={comp.state ? "green" : "white"}
+            stroke="black"
+            strokeWidth={2}
+            cornerRadius={8}
+          />
           {
             comp.display ? (
               comp.display([
