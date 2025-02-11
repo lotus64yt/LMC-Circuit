@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Stage, Layer, Rect, Text, Group, Circle, Path } from "react-konva";
 import { FaCheck, FaPlay, FaPause, FaLightbulb, FaArrowRight/*, FaPlus*/ } from 'react-icons/fa';
 import { GiLogicGateAnd, GiLogicGateNand, GiLogicGateNor, GiLogicGateNot, GiLogicGateNxor, GiLogicGateOr, GiLogicGateXor } from "react-icons/gi";
 import { SiCustomink } from "react-icons/si";
 import { MdSwitchRight } from "react-icons/md";
+import Konva from "konva";
 
 type Component = {
   id: string;
@@ -36,6 +37,7 @@ type Connection = {
 
 export default function Page() {
   const [tempConnection, setTempConnection] = useState<{ from: string; fromOutput: number } | null>(null);
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [simulationRunning, setSimulationRunning] = useState(false);
   const [components, setComponents] = useState<Component[]>([]);
   const [connections, setConnections] = useState<Connection[]>([]);
@@ -48,6 +50,30 @@ export default function Page() {
   const [editComponent, setEditComponent] = useState<Component | null>(null);
   const [customBlocks, setCustomBlocks] = useState<{ [key: string]: Component }>({});
   const [editCustomBlock, setEditCustomBlock] = useState<tempComponent | null>(null);
+  const [trashPos, setTrashPos] = useState({
+    x: typeof window !== "undefined" ? window.innerWidth - 100 : 0,
+    y: typeof window !== "undefined" ? window.innerHeight - 120 : 0,
+  });
+  const stageRef = useRef<Konva.Stage>(null);
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+    const updateTrashPos = () => {
+      setTrashPos({
+        x: window.innerWidth - 100,
+        y: window.innerHeight - 120,
+      });
+    };
+
+    const updateMousePos = (e: MouseEvent) => {
+      setMousePos({ x: e.clientX, y: e.clientY });
+    }
+
+    window.addEventListener("mousemove", updateMousePos);
+    window.addEventListener("resize", updateTrashPos);
+    return () => window.removeEventListener("resize", updateTrashPos);
+  }, []);
 
   const defaultGates = {
     AND: { type: "AND", inputs: 2, outputs: 1, logic: (inputs: boolean[]) => [inputs[0] && inputs[1]] },
@@ -161,11 +187,19 @@ export default function Page() {
   }, [inputChanged, simulationRunning]);
 
   const addComponent = (type: keyof typeof defaultGates) => {
-    const baseX = 100;
-    const baseY = 100;
+    if (!stageRef || !stageRef.current) return;
+
+    const stage = stageRef.current;
+    const scale = stage.scaleX();
+    const position = stage.position();
+    const pointer = stage.getPointerPosition();
+
+    if (!pointer) return;
+    
+    const baseX = (pointer.x - position.x) / scale;
+    const baseY = (pointer.y - position.y) / scale;
 
     const isOccupied = components.some((comp) => comp.x === baseX && comp.y === baseY);
-
     const offset = isOccupied ? 20 * components.length : 0;
 
     const newComponent: Component = {
@@ -226,16 +260,10 @@ export default function Page() {
             );
           }
         }}
-        // onDragEnd={(e) => {
-        //   if (simulationRunning) return;
-        //   setIsDragging(false)
-        //   setComponents((prev) =>
-        //     prev.map((c) =>
-        //       c.id === comp.id ? { ...c, x: e.target.x(), y: e.target.y() } : c
-        //     )
-
-        //   )
-        // }}
+        onDragEnd={() => {
+          if (simulationRunning) return;
+          setIsDragging(false)
+        }}
         onContextMenu={(e) => {
           if (simulationRunning) return;
           e.evt.preventDefault();
@@ -366,10 +394,21 @@ export default function Page() {
     setEditCustomBlock(null);
   }
 
+  if (!isClient) {
+    return (
+      <div className="flex flex-col gap-7 w-screen items-center justify-center h-screen bg-gray-900">
+        <h1 className="text-white text-6xl font-bold">LMC Circuit</h1>
+        <div className="flex items-center justify-center">
+          <div className="w-16 h-16 border-4 border-t-4 border-blue-500 border-dashed rounded-full animate-spin border-t-transparent"></div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex h-screen">
+    <div className="relative flex h-screen w-screen">
       <div
-        className={`fixed top-0 left-0 h-full overflow-y-auto overflow-x-hidden bg-gray-900 bg-opacity-80 shadow-lg backdrop-blur-md text-white flex flex-col items-center py-4 space-y-3 rounded-r-xl transition-all duration-300 ${expanded ? "w-56 px-4" : "w-20 px-3"
+        className={`fixed z-50 top-0 left-0 h-full overflow-y-auto overflow-x-hidden bg-gray-900 bg-opacity-80 shadow-lg backdrop-blur-md text-white flex flex-col items-center py-4 space-y-3 rounded-r-xl transition-all duration-300 ${expanded ? "w-56 px-4" : "w-20 px-3"
           }`}
         onMouseEnter={() => setExpanded(true)}
         onMouseLeave={() => setExpanded(false)}
@@ -423,7 +462,9 @@ export default function Page() {
                         {items.map(({ onClick, icon, title, color }, index) => (
                           <button
                             key={index}
-                            onClick={onClick}
+                            onClick={() => {
+                              onClick()
+                            }}
                             className="flex items-center space-x-2 w-full mt-2 rounded-lg transition-all duration-300 justify-start"
                             title={title}
                           >
@@ -632,10 +673,45 @@ export default function Page() {
       )}
 
 
-      <div className="flex-1 flex flex-col items-center gap-4 mt-auto mb-auto">
-        <Stage width={800} height={500} className="border border-gray-300">
+      <div className="relative z-0 flex-1 flex flex-col items-center gap-4 mt-auto mb-auto">
+        <Stage
+          ref={stageRef}
+          className="bg-gray-700"
+          width={window.innerWidth}
+          height={window.innerHeight}
+          id="stage-container"
+          draggable
+          onDragStart={() => {
+            document.body.style.cursor = "move";
+          }}
+          onDragEnd={() => {
+            document.body.style.cursor = "default";
+          }}
+        >
           <Layer>
             {components.map(renderComponent)}
+            {tempConnection && (() => {
+              const from = components.find((c) => c.id === tempConnection.from);
+              if (!from) return null;
+
+              const fromX = from.x + 90;
+              const fromY = from.y + (tempConnection.fromOutput + 1) * 15;
+              const toX = mousePos.x;
+              const toY = mousePos.y;
+
+              const controlX = (fromX + toX) / 2;
+              const controlY = fromY;
+
+              return (
+                <Path
+                  data={`M ${fromX},${fromY} Q ${controlX},${controlY} ${toX},${toY}`}
+                  stroke={"gray"}
+                  strokeWidth={2}
+                  fill="transparent"
+                />
+              );
+            })()
+            }
             {connections.map((conn, index) => {
               const from = components.find((c) => c.id === conn.from);
               const to = components.find((c) => c.id === conn.to);
@@ -646,7 +722,7 @@ export default function Page() {
               const toX = to.x - 10;
               const toY = to.y + (conn.toInput + 1) * 15;
 
-              const controlX = (fromX + toX) / 2; 
+              const controlX = (fromX + toX) / 2;
               const controlY = fromY;
 
               return (
@@ -660,44 +736,42 @@ export default function Page() {
               );
             })}
           </Layer>
-          <Layer>
-            {isDragging && (
-              <Group
-                onMouseEnter={() => setIsOverTrash(true)}
-                onMouseLeave={() => setIsOverTrash(false)}
-                x={720}
-                y={400}
-                onMouseUp={() => {
-                  setComponents((prev) => prev.filter((c) => c.id !== isDragging));
-                  setIsOverTrash(false);
-                }}
-              >
-                <Path
-                  data="M10,5 H54 A3,3 0 0,1 57,8 V12 H7 V8 A3,3 0 0,1 10,5 Z"
-                  fill="#333"
-                  stroke="#222"
-                  strokeWidth={2}
-                  offsetX={isOverTrash ? -2 : 0}
-                  rotation={isOverTrash ? -15 : 0}
-                  x={0}
-                  y={isOverTrash ? -5 : 0}
-                  duration={300}
-                />
-
-                <Path
-                  data="M15,15 H49 V65 A5,5 0 0,1 44,70 H20 A5,5 0 0,1 15,65 Z"
-                  fill="#444"
-                  stroke="#222"
-                  strokeWidth={2}
-                />
-                <Path data="M20,18 V60" stroke="#222" strokeWidth={2} />
-                <Path data="M30,18 V60" stroke="#222" strokeWidth={2} />
-                <Path data="M40,18 V60" stroke="#222" strokeWidth={2} />
-                <Path data="M50,18 V60" stroke="#222" strokeWidth={2} />
-              </Group>
-            )}
-          </Layer>
         </Stage>
+        {isDragging && (
+          <div
+            onMouseEnter={() => setIsOverTrash(true)}
+            onMouseLeave={() => setIsOverTrash(false)}
+            style={{
+              position: "absolute",
+              left: trashPos.x,
+              top: trashPos.y,
+              pointerEvents: "auto",
+            }}
+            onMouseUp={() => {
+              setComponents((prev) => prev.filter((c) => c.id !== isDragging));
+              setIsOverTrash(false);
+            }}
+          >
+            <svg width="70" height="80" viewBox="0 0 70 80">
+              <path
+                d="M10,5 H54 A3,3 0 0,1 57,8 V12 H7 V8 A3,3 0 0,1 10,5 Z"
+                fill={isOverTrash ? "#222" : "#333"}
+                stroke="#222"
+                strokeWidth="2"
+              />
+              <path
+                d="M15,15 H49 V65 A5,5 0 0,1 44,70 H20 A5,5 0 0,1 15,65 Z"
+                fill="#444"
+                stroke="#222"
+                strokeWidth="2"
+              />
+              <path d="M20,18 V60" stroke="#222" strokeWidth="2" />
+              <path d="M30,18 V60" stroke="#222" strokeWidth="2" />
+              <path d="M40,18 V60" stroke="#222" strokeWidth="2" />
+              <path d="M50,18 V60" stroke="#222" strokeWidth="2" />
+            </svg>
+          </div>
+        )}
       </div>
     </div>
   );
