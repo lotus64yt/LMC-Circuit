@@ -52,8 +52,6 @@ To run the project locally, you need the following:
 ## Known Bugs
 
 - **Connection between components**: The connection between components has to be first on the output side and then on the input side. If you connect the input first, the connection will not be established.
-- **Simulation**: You can interact with the components while the simulation is running.
-- **Interactive Components**: The interactive components can be click without the simulation running. 
 
 ## Future Improvements
 

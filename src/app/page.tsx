@@ -7,6 +7,8 @@ import { GiLogicGateAnd, GiLogicGateNand, GiLogicGateNor, GiLogicGateNot, GiLogi
 import { SiCustomink } from "react-icons/si";
 import { MdSwitchRight } from "react-icons/md";
 import Konva from "konva";
+import UpdateMessage from "@/component/UpdateMessage";
+import { TbLogicBuffer } from "react-icons/tb";
 
 type Component = {
   id: string;
@@ -85,14 +87,23 @@ export default function Page() {
     NAND: { type: "NAND", inputs: 2, outputs: 1, logic: (inputs: boolean[]) => [!(inputs[0] && inputs[1]) ? 1 : 0] },
     NOR: { type: "NOR", inputs: 2, outputs: 1, logic: (inputs: boolean[]) => [!(inputs[0] || inputs[1])] },
     XNOR: { type: "XNOR", inputs: 2, outputs: 1, logic: (inputs: boolean[]) => [inputs[0] === inputs[1]] },
-    TRANSISTOR: { type: "TRANSISTOR", inputs: 2, outputs: 1, logic: (inputs: boolean[]) => [inputs[0] && inputs[1] ? inputs[1] : false] },
+    TRANSISTOR: { type: "Transistor", inputs: 2, outputs: 1, logic: (inputs: boolean[]) => [inputs[0] && inputs[1] ? inputs[1] : false] },
+    "74LS00": {
+      type: "74LS00",
+      inputs: 4,
+      outputs: 2,
+      logic: (inputs: boolean[]) => [
+        inputs[0] && inputs[1],
+        inputs[2] && inputs[3],
+      ],
+    },
     Button: {
       type: "Button", inputs: 0, outputs: 1, onClick: (component: Component) => {
         setComponents((prev) => prev.map((c) => c.id === component.id ? { ...c, state: !c.state } : c))
       }
     },
     Screen7Segment: {
-      type: "Screen7Segment", inputs: 8, outputs: 0, display: (inputs: boolean[]) => {
+      type: "7 Segment diplay", inputs: 8, outputs: 0, display: (inputs: boolean[]) => {
         const width = 80;
         const height = 138;
         const margin = 5;
@@ -206,7 +217,7 @@ export default function Page() {
 
     const newComponent: Component = {
       id: crypto.randomUUID(),
-      type: type as "AND" | "OR" | "NOT" | "Button" | "Lamp",
+      type: type as string,
       display: type in defaultGates && 'display' in defaultGates[type] ? defaultGates[type].display as (inputs: boolean[]) => React.ReactNode : undefined,
       inputs: defaultGates[type]?.inputs || 0,
       outputs: defaultGates[type]?.outputs || 0,
@@ -282,7 +293,7 @@ export default function Page() {
         >
           <Rect
             width={80}
-            height={comp.inputs > 2 || comp.outputs > 2 ? 50 + 11 * (comp.inputs > comp.outputs ? comp.inputs : comp.outputs) : 50}
+            height={comp.inputs > 2 || comp.outputs > 2 ? 40 + 11 * (comp.inputs > comp.outputs ? comp.inputs : comp.outputs) : 50}
             fill={comp.state ? "green" : "white"}
             stroke="black"
             strokeWidth={2}
@@ -358,17 +369,18 @@ export default function Page() {
   };
 
   const sideBarComponents = [
-    { onClick: () => addComponent("AND"), icon: <GiLogicGateAnd />, title: "Porte AND", color: "bg-blue-600", type: "operator" },
-    { onClick: () => addComponent("OR"), icon: <GiLogicGateOr />, title: "Porte OR", color: "bg-green-600", type: "operator" },
-    { onClick: () => addComponent("NOT"), icon: <GiLogicGateNot />, title: "Porte NOT", color: "bg-red-600", type: "operator" },
-    { onClick: () => addComponent("XOR"), icon: <GiLogicGateXor />, title: "Porte XOR", color: "bg-red-600", type: "operator" },
-    { onClick: () => addComponent("NAND"), icon: <GiLogicGateNand />, title: "Porte NAND", color: "bg-red-600", type: "operator" },
-    { onClick: () => addComponent("NOR"), icon: <GiLogicGateNor />, title: "Porte NOR", color: "bg-red-600", type: "operator" },
-    { onClick: () => addComponent("XNOR"), icon: <GiLogicGateNxor />, title: "Porte XNOR", color: "bg-red-600", type: "operator" },
-    { onClick: () => addComponent("TRANSISTOR"), icon: <MdSwitchRight />, title: "Transistor", color: "bg-lime-900", type: "gate" },
-    { onClick: () => addComponent("Button"), icon: <FaCheck />, title: "Boutton", color: "bg-purple-600", type: "input" },
-    { onClick: () => addComponent("Lamp"), icon: <FaLightbulb />, title: "Lampe de sortie", color: "bg-orange-600", type: "output" },
-    { onClick: () => addComponent("Screen7Segment"), icon: <FaLightbulb />, title: "Afficheur 7 segments", color: "bg-orange-600", type: "output" },
+    { onClick: () => addComponent("AND"), icon: <GiLogicGateAnd />, title: "AND", color: "bg-blue-600", type: "Operators" },
+    { onClick: () => addComponent("OR"), icon: <GiLogicGateOr />, title: "OR", color: "bg-green-600", type: "Operators" },
+    { onClick: () => addComponent("NOT"), icon: <GiLogicGateNot />, title: "NOT", color: "bg-red-600", type: "Operators" },
+    { onClick: () => addComponent("XOR"), icon: <GiLogicGateXor />, title: "XOR", color: "bg-red-600", type: "Operators" },
+    { onClick: () => addComponent("NAND"), icon: <GiLogicGateNand />, title: "NAND", color: "bg-red-600", type: "Operators" },
+    { onClick: () => addComponent("NOR"), icon: <GiLogicGateNor />, title: "NOR", color: "bg-red-600", type: "Operators" },
+    { onClick: () => addComponent("XNOR"), icon: <GiLogicGateNxor />, title: "XNOR", color: "bg-red-600", type: "Operators" },
+    { onClick: () => addComponent("TRANSISTOR"), icon: <MdSwitchRight />, title: "Transistor", color: "bg-lime-900", type: "Gates" },
+    { onClick: () => addComponent("74LS00"), icon: <TbLogicBuffer />, title: "74LS00", color: "bg-blue-600", type: "Gates" },
+    { onClick: () => addComponent("Button"), icon: <FaCheck />, title: "Button", color: "bg-purple-600", type: "Inputs" },
+    { onClick: () => addComponent("Lamp"), icon: <FaLightbulb />, title: "Lamp", color: "bg-orange-600", type: "Outputs" },
+    { onClick: () => addComponent("Screen7Segment"), icon: <FaLightbulb />, title: "7 Segments screen", color: "bg-orange-600", type: "Outputs" },
     ...Object.values(customBlocks).map((block) => ({
       onClick: () => {
         setComponents((prev) => [
@@ -429,7 +441,7 @@ export default function Page() {
       >
         <input
           type="text"
-          placeholder="Rechercher"
+          placeholder={"Search"}
           className="w-full p-2 bg-gray-800 text-white rounded-lg"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -522,12 +534,12 @@ export default function Page() {
         <button
           onClick={() => setSimulationRunning(!simulationRunning)}
           className="flex items-center space-x-2 w-full rounded-lg transition-all duration-300 justify-start"
-          title={"Simulation"}
+          title={"Start Simulation"}
         >
           <span className={`p-3 rounded-lg bg-yellow-600 hover:brightness-110 focus:ring-2 focus:ring-white transition-all`}>
             {simulationRunning ? <FaPause /> : <FaPlay />}
           </span>
-          {expanded && <span className="ml-3 text-sm font-medium whitespace-nowrap overflow-hidden">{"Simulation"}</span>}
+          {expanded && <span className="ml-3 text-sm font-medium whitespace-nowrap overflow-hidden">{"Start Simulation"}</span>}
         </button>
       </div>
       {editCustomBlock && (
@@ -543,15 +555,15 @@ export default function Page() {
                 }}
                 className="p-2 bg-red-600 hover:bg-red-500 text-white rounded-lg transition duration-200"
               >
-                Supprimer
+                {"Delete"}
               </button>
             </div>
             <div className="space-y-3">
               <div>
-                <label className="text-sm font-medium">Nom</label>
+                <label className="text-sm font-medium">Name</label>
                 <input
                   type="text"
-                  placeholder="Nom du composant"
+                  placeholder="Component name"
                   value={editCustomBlock.type}
                   onChange={(e) => {
                     if (customBlocks[e.target.value]) {
@@ -564,7 +576,7 @@ export default function Page() {
                   }}
                   className="w-full mt-1 p-2 bg-gray-800 border border-gray-700 rounded-lg focus:ring focus:ring-blue-500 outline-none"
                 />
-                <p className="text-xs text-gray-400" hidden id={"warning-customBlock-name"}>Le nom doit être unique</p>
+                <p className="text-xs text-gray-400" hidden id={"warning-customBlock-name"}>The name must be unique</p>
               </div>
 
 
@@ -606,12 +618,12 @@ export default function Page() {
                 }}
                 className="p-2 bg-red-600 hover:bg-red-500 text-white rounded-lg transition duration-200"
               >
-                Supprimer
+                Delete
               </button>
             </div>
             <div className="space-y-3">
               <div>
-                <label className="text-sm font-medium">Nom</label>
+                <label className="text-sm font-medium">Name</label>
                 <input
                   type="text"
                   placeholder="Nom du composant"
@@ -685,7 +697,7 @@ export default function Page() {
           </div>
         </div>
       )}
-
+      <UpdateMessage />
 
       <div className="relative z-0 flex-1 flex flex-col items-center gap-4 mt-auto mb-auto">
         <Stage
