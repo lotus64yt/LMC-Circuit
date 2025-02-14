@@ -58,7 +58,6 @@ To run the project locally, you need the following:
 - **Enhanced User Interface**: A more refined UI with drag-and-drop functionality for better component organization and alignment.
 - **Simulation Speed Control**: Adding a feature to control the speed of circuit simulations for better experimentation and learning.
 - **More Component Types**: Future support for additional components like flip-flops, registers, or multiplexers.
-- **Save and Load Circuits**: Implement a feature that allows users to save their created circuits and load them for future use.
 - **Mobile Support**: Improve the simulator's responsiveness for mobile users, ensuring all components are interactable on smaller screens.
 - **Better Connection Style**: Implement a better wire style with curves and arrows to show the direction of the connection.
 
