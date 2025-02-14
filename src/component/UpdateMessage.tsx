@@ -8,7 +8,7 @@ const UpdateMessage = () => {
 
         if (!hasSeenUpdate) {
             setIsVisible(true);
-            localStorage.setItem("updateMessageSeen", "977bdf8");
+            localStorage.setItem("updateMessageSeen", "084cbcc");
         }
     }, []);
 
@@ -24,9 +24,7 @@ const UpdateMessage = () => {
                         LMC Circuit has been improuved with new features and bug fixes.
                     </p>
                     <ul className="list-disc pl-5">
-                        <li className="text-gray-300">- Changes : Better wires, full screen playgroud</li>
-                        <li className="text-gray-300">- Fixes : Better performances, minors bug fixes</li>
-                        <li className="text-gray-300">- Add : New components (ex: Transistor, 74LS00)</li>
+                        <li className="text-gray-300">- Add : Files Save, Import, Change view</li>
                     </ul>
                 </div>
 

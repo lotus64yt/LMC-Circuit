@@ -2,30 +2,13 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { Stage, Layer, Rect, Text, Group, Circle, Path } from "react-konva";
-import {
-  FaCheck,
-  FaPlay,
-  FaPause,
-  FaLightbulb,
-  FaArrowRight /*, FaPlus*/,
-} from "react-icons/fa";
-import {
-  GiLogicGateAnd,
-  GiLogicGateNand,
-  GiLogicGateNor,
-  GiLogicGateNot,
-  GiLogicGateNxor,
-  GiLogicGateOr,
-  GiLogicGateXor,
-} from "react-icons/gi";
+import { FaCheck, FaPlay, FaPause, FaLightbulb, FaArrowRight/*, FaPlus*/ } from 'react-icons/fa';
+import { GiLogicGateAnd, GiLogicGateNand, GiLogicGateNor, GiLogicGateNot, GiLogicGateNxor, GiLogicGateOr, GiLogicGateXor } from "react-icons/gi";
 import { SiCustomink } from "react-icons/si";
 import { MdSwitchRight } from "react-icons/md";
 import Konva from "konva";
-import UpdateMessage from "@/component/UpdateMessage";
-import { TbLogicBuffer } from "react-icons/tb";
-import MenuBar from "@/component/MenuBar";
 
-export type Component = {
+type Component = {
   id: string;
   type: "AND" | "OR" | "NOT" | "Button" | "Lamp" | "Screen7Segment" | string;
   display?: (intpus: boolean[]) => React.ReactNode;
@@ -38,14 +21,14 @@ export type Component = {
   onClick?: (component: Component) => void;
 };
 
-export type tempComponent = {
+type tempComponent = {
   type: "AND" | "OR" | "NOT" | "Button" | "Lamp" | string;
   inputs: number;
   outputs: number;
   logic?: (inputs: boolean[]) => boolean[];
-};
+}
 
-export type Connection = {
+type Connection = {
   from: string;
   to: string;
   fromOutput: number;
@@ -53,10 +36,7 @@ export type Connection = {
 };
 
 export default function Page() {
-  const [tempConnection, setTempConnection] = useState<{
-    from: string;
-    fromOutput: number;
-  } | null>(null);
+  const [tempConnection, setTempConnection] = useState<{ from: string; fromOutput: number } | null>(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [simulationRunning, setSimulationRunning] = useState(false);
   const [components, setComponents] = useState<Component[]>([]);
@@ -68,12 +48,8 @@ export default function Page() {
   const [search, setSearch] = useState("");
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
   const [editComponent, setEditComponent] = useState<Component | null>(null);
-  const [customBlocks, setCustomBlocks] = useState<{
-    [key: string]: Component;
-  }>({});
-  const [editCustomBlock, setEditCustomBlock] = useState<tempComponent | null>(
-    null
-  );
+  const [customBlocks, setCustomBlocks] = useState<{ [key: string]: Component }>({});
+  const [editCustomBlock, setEditCustomBlock] = useState<tempComponent | null>(null);
   const [trashPos, setTrashPos] = useState({
     x: typeof window !== "undefined" ? window.innerWidth - 100 : 0,
     y: typeof window !== "undefined" ? window.innerHeight - 120 : 0,
@@ -94,90 +70,29 @@ export default function Page() {
       const pointer = stageRef.current?.getRelativePointerPosition();
       setMousePos({
         x: pointer?.x || 0,
-        y: pointer?.y || 0,
+        y: pointer?.y || 0
       });
-    });
+    })
     window.addEventListener("resize", updateTrashPos);
     return () => window.removeEventListener("resize", updateTrashPos);
   }, []);
 
   const defaultGates = {
-    AND: {
-      type: "AND",
-      inputs: 2,
-      outputs: 1,
-      logic: (inputs: boolean[]) => [inputs[0] && inputs[1]],
-    },
-    OR: {
-      type: "OR",
-      inputs: 2,
-      outputs: 1,
-      logic: (inputs: boolean[]) => [inputs[0] || inputs[1]],
-    },
-    NOT: {
-      type: "NOT",
-      inputs: 1,
-      outputs: 1,
-      logic: (inputs: boolean[]) => [!inputs[0]],
-    },
-    XOR: {
-      type: "XOR",
-      inputs: 2,
-      outputs: 1,
-      logic: (inputs: boolean[]) => [inputs[0] !== inputs[1]],
-    },
-    NAND: {
-      type: "NAND",
-      inputs: 2,
-      outputs: 1,
-      logic: (inputs: boolean[]) => [!(inputs[0] && inputs[1]) ? 1 : 0],
-    },
-    NOR: {
-      type: "NOR",
-      inputs: 2,
-      outputs: 1,
-      logic: (inputs: boolean[]) => [!(inputs[0] || inputs[1])],
-    },
-    XNOR: {
-      type: "XNOR",
-      inputs: 2,
-      outputs: 1,
-      logic: (inputs: boolean[]) => [inputs[0] === inputs[1]],
-    },
-    TRANSISTOR: {
-      type: "Transistor",
-      inputs: 2,
-      outputs: 1,
-      logic: (inputs: boolean[]) => [
-        inputs[0] && inputs[1] ? inputs[1] : false,
-      ],
-    },
-    "74LS00": {
-      type: "74LS00",
-      inputs: 4,
-      outputs: 2,
-      logic: (inputs: boolean[]) => [
-        inputs[0] && inputs[1],
-        inputs[2] && inputs[3],
-      ],
-    },
+    AND: { type: "AND", inputs: 2, outputs: 1, logic: (inputs: boolean[]) => [inputs[0] && inputs[1]] },
+    OR: { type: "OR", inputs: 2, outputs: 1, logic: (inputs: boolean[]) => [inputs[0] || inputs[1]] },
+    NOT: { type: "NOT", inputs: 1, outputs: 1, logic: (inputs: boolean[]) => [!inputs[0]] },
+    XOR: { type: "XOR", inputs: 2, outputs: 1, logic: (inputs: boolean[]) => [inputs[0] !== inputs[1]] },
+    NAND: { type: "NAND", inputs: 2, outputs: 1, logic: (inputs: boolean[]) => [!(inputs[0] && inputs[1]) ? 1 : 0] },
+    NOR: { type: "NOR", inputs: 2, outputs: 1, logic: (inputs: boolean[]) => [!(inputs[0] || inputs[1])] },
+    XNOR: { type: "XNOR", inputs: 2, outputs: 1, logic: (inputs: boolean[]) => [inputs[0] === inputs[1]] },
+    TRANSISTOR: { type: "TRANSISTOR", inputs: 2, outputs: 1, logic: (inputs: boolean[]) => [inputs[0] && inputs[1] ? inputs[1] : false] },
     Button: {
-      type: "Button",
-      inputs: 0,
-      outputs: 1,
-      onClick: (component: Component) => {
-        setComponents((prev) =>
-          prev.map((c) =>
-            c.id === component.id ? { ...c, state: !c.state } : c
-          )
-        );
-      },
+      type: "Button", inputs: 0, outputs: 1, onClick: (component: Component) => {
+        setComponents((prev) => prev.map((c) => c.id === component.id ? { ...c, state: !c.state } : c))
+      }
     },
     Screen7Segment: {
-      type: "7 Segment diplay",
-      inputs: 8,
-      outputs: 0,
-      display: (inputs: boolean[]) => {
+      type: "Screen7Segment", inputs: 8, outputs: 0, display: (inputs: boolean[]) => {
         const width = 80;
         const height = 138;
         const margin = 5;
@@ -189,8 +104,7 @@ export default function Page() {
           { x: 15 + margin, y: 126, w: 50 - margin * 2, h: 12 },
           { x: 3, y: 74 + margin, w: 12, h: 55 - margin * 2 },
           { x: 3, y: 6 + margin, w: 12, h: 55 - margin * 2 },
-          { x: 15 + margin, y: 67, w: 50 - margin * 2, h: 12 },
-        ];
+          { x: 15 + margin, y: 67, w: 50 - margin * 2, h: 12 },];
 
         return (
           <Group>
@@ -226,27 +140,11 @@ export default function Page() {
               shadowColor="red"
             />
           </Group>
-        );
-      },
+        )
+      }
     },
     Lamp: { type: "Lamp", inputs: 1, outputs: 0 },
   };
-
-  // useEffect(() => {
-  //   const component = components.find((c) => c.id === isDragging);
-  //   if (!component) return;
-
-  //   const stage = stageRef.current;
-  //   if (!stage) return;
-
-  //   const scale = stage.scaleX();
-  //   const position = stage.position();
-  //   const pointer = stage.getRelativePointerPosition();
-  //   if (!pointer) return;
-
-  //   component.x = (pointer.x - position.x) / scale;
-  //   component.y = (pointer.y - position.y) / scale;
-  // }, [isDragging, components]);
 
   useEffect(() => {
     if (!simulationRunning) return;
@@ -255,9 +153,7 @@ export default function Page() {
       if (comp.logic || comp.onClick) {
         const inputs = connections
           .filter((conn) => conn.to === comp.id)
-          .map(
-            (conn) => components.find((c) => c.id === conn.from)?.state || false
-          );
+          .map((conn) => components.find((c) => c.id === conn.from)?.state || false);
 
         if (comp.logic) {
           comp.state = comp.logic(inputs)[0];
@@ -292,78 +188,43 @@ export default function Page() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inputChanged, simulationRunning]);
 
-  const addComponent = (
-    type: keyof typeof defaultGates,
-    isDragging?: boolean
-  ) => {
+  const addComponent = (type: keyof typeof defaultGates) => {
     if (!stageRef || !stageRef.current) return;
 
     const stage = stageRef.current;
     const scale = stage.scaleX();
     const position = stage.position();
-    const pointer = isDragging
-      ? stage.getRelativePointerPosition()
-      : stage.getPointerPosition();
-    console.log(isDragging);
+    const pointer = stage.getPointerPosition();
 
     if (!pointer) return;
 
     const baseX = (pointer.x - position.x) / scale;
     const baseY = (pointer.y - position.y) / scale;
 
-    const isOccupied = components.some(
-      (comp) => comp.x === baseX && comp.y === baseY
-    );
+    const isOccupied = components.some((comp) => comp.x === baseX && comp.y === baseY);
     const offset = isOccupied ? 20 * components.length : 0;
 
     const newComponent: Component = {
       id: crypto.randomUUID(),
-      type: type as string,
-      display:
-        type in defaultGates && "display" in defaultGates[type]
-          ? (defaultGates[type].display as (
-              inputs: boolean[]
-            ) => React.ReactNode)
-          : undefined,
+      type: type as "AND" | "OR" | "NOT" | "Button" | "Lamp",
+      display: type in defaultGates && 'display' in defaultGates[type] ? defaultGates[type].display as (inputs: boolean[]) => React.ReactNode : undefined,
       inputs: defaultGates[type]?.inputs || 0,
       outputs: defaultGates[type]?.outputs || 0,
       x: baseX + offset,
       y: baseY + offset,
       state: type === "Button" ? false : undefined,
-      ...(type in defaultGates && "logic" in defaultGates[type]
-        ? {
-            logic: defaultGates[type]?.logic as (
-              inputs: boolean[]
-            ) => boolean[],
-          }
-        : {}),
-      ...(type in defaultGates && "onClick" in defaultGates[type]
-        ? {
-            onClick: defaultGates[type]?.onClick as (
-              component: Component
-            ) => void,
-          }
-        : {}),
+      ...(type in defaultGates && 'logic' in defaultGates[type] ? { logic: defaultGates[type]?.logic as (inputs: boolean[]) => boolean[] } : {}),
+      ...(type in defaultGates && 'onClick' in defaultGates[type] ? { onClick: defaultGates[type]?.onClick as (component: Component) => void } : {}),
     };
 
     setComponents([...components, newComponent]);
-    setIsDragging(isDragging ? newComponent.id : false);
-
-    return newComponent;
   };
 
-  const addCustomBlock = (
-    type: string,
-    inputs: number,
-    outputs: number,
-    logic: (inputs: boolean[]) => boolean[]
-  ) => {
+  const addCustomBlock = (type: string, inputs: number, outputs: number, logic: (inputs: boolean[]) => boolean[]) => {
     const baseX = 100;
     const baseY = 100;
 
-    const isOccupied = components.some(
-      (comp) => comp.x === baseX && comp.y === baseY
-    );
+    const isOccupied = components.some((comp) => comp.x === baseX && comp.y === baseY);
 
     const offset = isOccupied ? 20 * components.length : 0;
 
@@ -397,9 +258,7 @@ export default function Page() {
           if (isDragging === comp.id) {
             setComponents((prev) =>
               prev.map((c) =>
-                c.id === comp.id
-                  ? { ...c, x: e.target.x(), y: e.target.y() }
-                  : c
+                c.id === comp.id ? { ...c, x: e.target.x(), y: e.target.y() } : c
               )
             );
           }
@@ -410,7 +269,7 @@ export default function Page() {
         }}
         onDragEnd={() => {
           if (simulationRunning) return;
-          setIsDragging(false);
+          setIsDragging(false)
         }}
       >
         <Group
@@ -423,76 +282,64 @@ export default function Page() {
         >
           <Rect
             width={80}
-            height={
-              comp.inputs > 2 || comp.outputs > 2
-                ? 40 +
-                  11 * (comp.inputs > comp.outputs ? comp.inputs : comp.outputs)
-                : 50
-            }
+            height={comp.inputs > 2 || comp.outputs > 2 ? 50 + 11 * (comp.inputs > comp.outputs ? comp.inputs : comp.outputs) : 50}
             fill={comp.state ? "green" : "white"}
             stroke="black"
             strokeWidth={2}
             cornerRadius={8}
           />
-          {comp.display ? (
-            comp.display([
-              ...Array.from({ length: comp.inputs }).map((_, i) =>
-                connections.some(
-                  (conn) =>
-                    conn.to === comp.id &&
-                    conn.toInput === i &&
-                    components.find((c) => c.id === conn.from)?.state
-                )
-              ),
-            ])
-          ) : (
-            <Text
-              text={comp.type}
-              fontSize={16}
-              fill="black"
-              align="center"
-              width={80}
-              height={50}
-              verticalAlign="middle"
-            />
-          )}
+          {
+            comp.display ? (
+              comp.display([
+                ...Array.from({ length: comp.inputs }).map((_, i) => connections.some((conn) => conn.to === comp.id && conn.toInput === i && components.find((c) => c.id === conn.from)?.state)),
+              ])
+            ) : (
+              <Text text={comp.type} fontSize={16} fill="black" align="center" width={80} height={50} verticalAlign="middle" />
+            )
+          }
+
         </Group>
-        {Array.from({ length: comp.inputs }).map((_, i) => (
-          <Circle
-            style={{ cursor: "pointer" }}
-            key={`in-${comp.id}-${i}`}
-            x={-10}
-            y={(i + 1) * 15}
-            radius={5}
-            fill="blue"
-            onClick={() => {
-              if (simulationRunning || !tempConnection) return;
-              completeConnection(comp.id, i);
-            }}
-            onMouseUp={() => {
-              if (simulationRunning || !tempConnection) return;
-              completeConnection(comp.id, i);
-            }}
-            onMouseEnter={() => (document.body.style.cursor = "pointer")}
-            onMouseLeave={() => (document.body.style.cursor = "default")}
-          />
-        ))}
-        {Array.from({ length: comp.outputs }).map((_, i) => (
-          <Circle
-            key={`out-${comp.id}-${i}`}
-            x={90}
-            y={(i + 1) * 15}
-            radius={5}
-            fill="red"
-            onMouseDown={(evt) => {
-              evt.cancelBubble = true; // Empêche la propagation du clic au Group parent
-              if (simulationRunning) return;
-              startConnection(comp.id, i);
-            }}
-            onMouseEnter={() => (document.body.style.cursor = "pointer")}
-            onMouseLeave={() => (document.body.style.cursor = "default")}
-          />
-        ))}
+        {
+          Array.from({ length: comp.inputs }).map((_, i) => (
+            <Circle
+              style={{ cursor: "pointer" }}
+              key={`in-${comp.id}-${i}`}
+              x={-10}
+              y={(i + 1) * 15}
+              radius={5}
+              fill="blue"
+              onClick={() => {
+                if (simulationRunning || !tempConnection) return;
+                completeConnection(comp.id, i)
+              }}
+              onMouseUp={() => {
+                if (simulationRunning || !tempConnection) return;
+                completeConnection(comp.id, i)
+              }}
+              onMouseEnter={() => (document.body.style.cursor = "pointer")}
+              onMouseLeave={() => (document.body.style.cursor = "default")}
+            />
+          ))
+        }
+        {
+          Array.from({ length: comp.outputs }).map((_, i) => (
+            <Circle
+              key={`out-${comp.id}-${i}`}
+              x={90}
+              y={(i + 1) * 15}
+              radius={5}
+              fill="red"
+              onMouseDown={(evt) => {
+                evt.cancelBubble = true; // Empêche la propagation du clic au Group parent
+                if (simulationRunning) return;
+                startConnection(comp.id, i);
+              }}
+              onMouseEnter={() => (document.body.style.cursor = "pointer")}
+              onMouseLeave={() => (document.body.style.cursor = "default")}
+            />
+          ))
+        }
+
       </Group>
     );
   };
@@ -511,90 +358,17 @@ export default function Page() {
   };
 
   const sideBarComponents = [
-    {
-      onClick: () => addComponent("AND"),
-      icon: <GiLogicGateAnd />,
-      title: "AND",
-      color: "bg-blue-600",
-      type: "Operators",
-    },
-    {
-      onClick: () => addComponent("OR"),
-      icon: <GiLogicGateOr />,
-      title: "OR",
-      color: "bg-green-600",
-      type: "Operators",
-    },
-    {
-      onClick: () => addComponent("NOT"),
-      icon: <GiLogicGateNot />,
-      title: "NOT",
-      color: "bg-red-600",
-      type: "Operators",
-    },
-    {
-      onClick: () => addComponent("XOR"),
-      icon: <GiLogicGateXor />,
-      title: "XOR",
-      color: "bg-red-600",
-      type: "Operators",
-    },
-    {
-      onClick: () => addComponent("NAND"),
-      icon: <GiLogicGateNand />,
-      title: "NAND",
-      color: "bg-red-600",
-      type: "Operators",
-    },
-    {
-      onClick: () => addComponent("NOR"),
-      icon: <GiLogicGateNor />,
-      title: "NOR",
-      color: "bg-red-600",
-      type: "Operators",
-    },
-    {
-      onClick: () => addComponent("XNOR"),
-      icon: <GiLogicGateNxor />,
-      title: "XNOR",
-      color: "bg-red-600",
-      type: "Operators",
-    },
-    {
-      onClick: () => addComponent("TRANSISTOR"),
-      icon: <MdSwitchRight />,
-      title: "Transistor",
-      color: "bg-lime-900",
-      type: "Gates",
-    },
-    {
-      onClick: () => addComponent("74LS00"),
-      icon: <TbLogicBuffer />,
-      title: "74LS00",
-      color: "bg-blue-600",
-      type: "Gates",
-    },
-    {
-      onClick: () => addComponent("Button"),
-      icon: <FaCheck />,
-      title: "Button",
-      color: "bg-purple-600",
-      type: "Inputs",
-    },
-    {
-      onClick: () => addComponent("Lamp"),
-      icon: <FaLightbulb />,
-      title: "Lamp",
-      color: "bg-orange-600",
-      type: "Outputs",
-    },
-    {
-      onClick: () => addComponent("Screen7Segment"),
-      icon: <FaLightbulb />,
-      title: "7 Segments screen",
-      color: "bg-orange-600",
-      type: "Outputs",
-    },
+    { onClick: () => addComponent("AND"), icon: <GiLogicGateAnd />, title: "Porte AND", color: "bg-blue-600", type: "operator" },
+    { onClick: () => addComponent("OR"), icon: <GiLogicGateOr />, title: "Porte OR", color: "bg-green-600", type: "operator" },
+    { onClick: () => addComponent("NOT"), icon: <GiLogicGateNot />, title: "Porte NOT", color: "bg-red-600", type: "operator" },
+    { onClick: () => addComponent("XOR"), icon: <GiLogicGateXor />, title: "Porte XOR", color: "bg-red-600", type: "operator" },
+    { onClick: () => addComponent("NAND"), icon: <GiLogicGateNand />, title: "Porte NAND", color: "bg-red-600", type: "operator" },
+    { onClick: () => addComponent("NOR"), icon: <GiLogicGateNor />, title: "Porte NOR", color: "bg-red-600", type: "operator" },
+    { onClick: () => addComponent("XNOR"), icon: <GiLogicGateNxor />, title: "Porte XNOR", color: "bg-red-600", type: "operator" },
+    { onClick: () => addComponent("TRANSISTOR"), icon: <MdSwitchRight />, title: "Transistor", color: "bg-lime-900", type: "gate" },
+    { onClick: () => addComponent("Button"), icon: <FaCheck />, title: "Boutton", color: "bg-purple-600", type: "input" },
+    { onClick: () => addComponent("Lamp"), icon: <FaLightbulb />, title: "Lampe de sortie", color: "bg-orange-600", type: "output" },
+    { onClick: () => addComponent("Screen7Segment"), icon: <FaLightbulb />, title: "Afficheur 7 segments", color: "bg-orange-600", type: "output" },
     ...Object.values(customBlocks).map((block) => ({
       onClick: () => {
         setComponents((prev) => [
@@ -604,8 +378,8 @@ export default function Page() {
             id: crypto.randomUUID(),
             x: 100,
             y: 100,
-            logic: block.logic,
-          },
+            logic: block.logic
+          }
         ]);
       },
       icon: <SiCustomink />,
@@ -613,7 +387,7 @@ export default function Page() {
       color: "bg-purple-600",
       type: "custom",
     })),
-  ];
+  ]
 
   const groupedComponents = sideBarComponents.reduce((acc, comp) => {
     if (!acc[comp.type as string]) acc[comp.type as string] = [];
@@ -632,7 +406,7 @@ export default function Page() {
       return newBlocks;
     });
     setEditCustomBlock(null);
-  };
+  }
 
   if (!isClient) {
     return (
@@ -648,137 +422,84 @@ export default function Page() {
   return (
     <div className="relative flex h-screen w-screen">
       <div
-        className={`fixed z-50 top-4 left-0 h-full overflow-y-auto overflow-x-hidden bg-gray-900 bg-opacity-80 shadow-lg backdrop-blur-md text-white flex flex-col items-center py-4 space-y-3 rounded-r-xl transition-all duration-300 ${
-          expanded ? "w-56 px-4" : "w-20 px-3"
-        }`}
+        className={`fixed z-50 top-0 left-0 h-full overflow-y-auto overflow-x-hidden bg-gray-900 bg-opacity-80 shadow-lg backdrop-blur-md text-white flex flex-col items-center py-4 space-y-3 rounded-r-xl transition-all duration-300 ${expanded ? "w-56 px-4" : "w-20 px-3"
+          }`}
         onMouseEnter={() => setExpanded(true)}
         onMouseLeave={() => setExpanded(false)}
       >
-        {/* {mousePos.x},
-        {mousePos.y} */}
         <input
           type="text"
-          placeholder={"Search"}
+          placeholder="Rechercher"
           className="w-full p-2 bg-gray-800 text-white rounded-lg"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
 
-        {expanded ? (
-          <div className="w-full h-full overflow-y-auto space-y-2">
-            {search.trim()
-              ? sideBarComponents
-                  .filter((e) =>
-                    e.title.toLowerCase().includes(search.trim().toLowerCase())
-                  )
-                  .map(({ onClick, icon, title, color }, index) => (
-                    <button
-                      key={index}
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        if (!isDragging) return;
-                        const component =
-                          components.find((e) => e.id === isDragging) ||
-                          addComponent(title as keyof typeof defaultGates);
-                        if (!component) return;
-                        setIsDragging(component.id);
-                      }}
-                      onMouseMove={() => {
-                        const component = components.find(
-                          (e) => e.id === isDragging
-                        );
-                        if (!component) return;
 
-                        const stage = stageRef.current;
-                        if (!stage) return;
-
-                        const scale = stage.scaleX();
-                        const position = stage.position();
-                        const pointer = stage.getRelativePointerPosition();
-                        if (!pointer) return;
-
-                        component.x = (pointer.x - position.x) / scale;
-                        component.y = (pointer.y - position.y) / scale;
-                        setComponents([...components, component]);
-                      }}
-                      onMouseUp={(e) => {
-                        e.preventDefault();
-                        if (isDragging) {
-                          setIsDragging(false);
-                        } else {
-                          onClick();
-                        }
-                      }}
-                      className="flex items-center space-x-2 w-full rounded-lg transition-all duration-300 justify-start"
-                      title={title}
-                    >
-                      <span
-                        className={`p-3 rounded-lg ${color} hover:brightness-110 focus:ring-2 focus:ring-white transition-all`}
+        {
+          expanded ? (
+            <div
+              className="w-full h-full overflow-y-auto space-y-2"
+            >
+              {
+                search.trim() ? (
+                  sideBarComponents
+                    .filter((e) => e.title.toLowerCase().includes(search.trim().toLowerCase()))
+                    .map(({ onClick, icon, title, color }, index) => (
+                      <button
+                        key={index}
+                        onClick={onClick}
+                        className="flex items-center space-x-2 w-full rounded-lg transition-all duration-300 justify-start"
+                        title={title}
                       >
-                        {icon}
-                      </span>
-                      {expanded && (
-                        <span className="ml-3 text-sm font-medium whitespace-nowrap overflow-hidden">
-                          {title}
+                        <span className={`p-3 rounded-lg ${color} hover:brightness-110 focus:ring-2 focus:ring-white transition-all`}>
+                          {icon}
                         </span>
-                      )}
-                    </button>
-                  ))
-              : Object.entries(groupedComponents).map(([type, items]) => (
-                  <div key={type} className="w-full">
-                    <button
-                      onClick={() => toggleSection(type)}
-                      className="flex items-center justify-between w-full p-2 bg-gray-800 rounded-lg text-left"
-                    >
-                      <span className="text-sm font-semibold">
-                        {type.toUpperCase()}
-                      </span>
-                      <span
-                        className={`transition-transform ${
-                          openSections[type] ? "rotate-180" : ""
-                        }`}
+                        {expanded && <span className="ml-3 text-sm font-medium whitespace-nowrap overflow-hidden">{title}</span>}
+                      </button>
+                    ))
+                ) : (
+                  Object.entries(groupedComponents).map(([type, items]) => (
+                    <div key={type} className="w-full">
+                      <button
+                        onClick={() => toggleSection(type)}
+                        className="flex items-center justify-between w-full p-2 bg-gray-800 rounded-lg text-left"
                       >
-                        ▼
-                      </span>
-                    </button>
+                        <span className="text-sm font-semibold">{type.toUpperCase()}</span>
+                        <span className={`transition-transform ${openSections[type] ? "rotate-180" : ""}`}>▼</span>
+                      </button>
 
-                    <div
-                      className={`transition-all duration-300 overflow-hidden ${
-                        openSections[type]
-                          ? "max-h-[1000px] opacity-100"
-                          : "max-h-0 opacity-0"
-                      }`}
-                    >
-                      {items.map(({ onClick, icon, title, color }, index) => (
-                        <button
-                          key={index}
-                          onClick={() => {
-                            onClick();
-                          }}
-                          className="flex items-center space-x-2 w-full mt-2 rounded-lg transition-all duration-300 justify-start"
-                          title={title}
-                        >
-                          <span
-                            className={`p-3 rounded-lg ${color} hover:brightness-110 focus:ring-2 focus:ring-white transition-all`}
+                      <div
+                        className={`transition-all duration-300 overflow-hidden ${openSections[type] ? "max-h-[1000px] opacity-100" : "max-h-0 opacity-0"
+                          }`}
+                      >
+                        {items.map(({ onClick, icon, title, color }, index) => (
+                          <button
+                            key={index}
+                            onClick={() => {
+                              onClick()
+                            }}
+                            className="flex items-center space-x-2 w-full mt-2 rounded-lg transition-all duration-300 justify-start"
+                            title={title}
                           >
-                            {icon}
-                          </span>
-                          {expanded && (
-                            <span className="ml-3 text-sm font-medium whitespace-nowrap overflow-hidden">
-                              {title}
+                            <span className={`p-3 rounded-lg ${color} hover:brightness-110 focus:ring-2 focus:ring-white transition-all`}>
+                              {icon}
                             </span>
-                          )}
-                        </button>
-                      ))}
+                            {expanded && <span className="ml-3 text-sm font-medium whitespace-nowrap overflow-hidden">{title}</span>}
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                ))}
-          </div>
-        ) : (
-          <div className="flex items-center justify-center h-full">
-            <FaArrowRight className="text-white" />
-          </div>
-        )}
+                  ))
+                )
+              }
+            </div>
+          ) : (
+            <div className="flex items-center justify-center h-full">
+              <FaArrowRight className="text-white" />
+            </div>
+          )
+        }
 
         {/* <button
           onClick={() => {
@@ -797,52 +518,21 @@ export default function Page() {
           </span>
           {expanded && <span className="ml-3 text-sm font-medium whitespace-nowrap overflow-hidden">{"Create Custom Block"}</span>}
         </button> */}
-        {/* <button
-          onClick={() => setSettingsOpen(!settingsOpen)}
-          className="flex items-center space-x-2 w-full rounded-lg transition-all duration-300 justify-start"
-          title={"Open Settings"}
-        >
-          <span
-            className={`p-3 rounded-lg bg-gray-600 hover:brightness-110 focus:ring-2 focus:ring-white transition-all`}
-          >
-            {simulationRunning ? <FaPause /> : <FaPlay />}
-          </span>
-          {expanded && (
-            <span className="ml-3 text-sm font-medium whitespace-nowrap overflow-hidden">
-              {"Open Settings"}
-            </span>
-          )}
-        </button> */}
+
         <button
           onClick={() => setSimulationRunning(!simulationRunning)}
           className="flex items-center space-x-2 w-full rounded-lg transition-all duration-300 justify-start"
-          title={"Start Simulation"}
+          title={"Simulation"}
         >
-          <span
-            className={`p-3 rounded-lg bg-yellow-600 hover:brightness-110 focus:ring-2 focus:ring-white transition-all`}
-          >
+          <span className={`p-3 rounded-lg bg-yellow-600 hover:brightness-110 focus:ring-2 focus:ring-white transition-all`}>
             {simulationRunning ? <FaPause /> : <FaPlay />}
           </span>
-          {expanded && (
-            <span className="ml-3 text-sm font-medium whitespace-nowrap overflow-hidden">
-              {"Start Simulation"}
-            </span>
-          )}
+          {expanded && <span className="ml-3 text-sm font-medium whitespace-nowrap overflow-hidden">{"Simulation"}</span>}
         </button>
-      </div>
-      <div className="z-50 fixed top-0 left-0 h-full">
-        <MenuBar
-          options={{
-            connections,
-            components,
-            setComponents,
-            setConnections,
-            stageRef,
-          }}
-        />
       </div>
       {editCustomBlock && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm z-50">
+
           <div className="bg-gray-900 text-white p-6 rounded-2xl shadow-xl w-[550px]">
             <div className="flex justify-between items-center">
               <h2 className="text-xl font-bold mb-4">{editCustomBlock.type}</h2>
@@ -853,41 +543,32 @@ export default function Page() {
                 }}
                 className="p-2 bg-red-600 hover:bg-red-500 text-white rounded-lg transition duration-200"
               >
-                {"Delete"}
+                Supprimer
               </button>
             </div>
             <div className="space-y-3">
               <div>
-                <label className="text-sm font-medium">Name</label>
+                <label className="text-sm font-medium">Nom</label>
                 <input
                   type="text"
-                  placeholder="Component name"
+                  placeholder="Nom du composant"
                   value={editCustomBlock.type}
                   onChange={(e) => {
                     if (customBlocks[e.target.value]) {
-                      document
-                        .getElementById("warning-customBlock-name")
-                        ?.removeAttribute("hidden");
+                      document.getElementById("warning-customBlock-name")?.removeAttribute("hidden");
                       return;
                     } else {
-                      document
-                        .getElementById("warning-customBlock-name")
-                        ?.setAttribute("hidden", "true");
+                      document.getElementById("warning-customBlock-name")?.setAttribute("hidden", "true");
                     }
-                    setEditCustomBlock((prev) =>
-                      prev ? { ...prev, type: e.target.value } : null
-                    );
+                    setEditCustomBlock((prev) => prev ? { ...prev, type: e.target.value } : null)
                   }}
                   className="w-full mt-1 p-2 bg-gray-800 border border-gray-700 rounded-lg focus:ring focus:ring-blue-500 outline-none"
                 />
-                <p
-                  className="text-xs text-gray-400"
-                  hidden
-                  id={"warning-customBlock-name"}
-                >
-                  The name must be unique
-                </p>
+                <p className="text-xs text-gray-400" hidden id={"warning-customBlock-name"}>Le nom doit être unique</p>
               </div>
+
+
+
             </div>
 
             <div className="flex justify-between mt-4">
@@ -895,12 +576,7 @@ export default function Page() {
                 onClick={() => {
                   setEditCustomBlock(null);
                   if (editCustomBlock.logic) {
-                    addCustomBlock(
-                      editCustomBlock.type,
-                      editCustomBlock.inputs,
-                      editCustomBlock.outputs,
-                      editCustomBlock.logic
-                    );
+                    addCustomBlock(editCustomBlock.type, editCustomBlock.inputs, editCustomBlock.outputs, editCustomBlock.logic);
                   }
                 }}
                 className="flex-1 p-2 bg-green-600 hover:bg-green-500 text-white rounded-lg transition duration-200 mx-1"
@@ -919,32 +595,29 @@ export default function Page() {
       )}
       {editComponent && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm z-50">
+
           <div className="bg-gray-900 text-white p-6 rounded-2xl shadow-xl w-[350px]">
             <div className="flex justify-between items-center">
               <h2 className="text-xl font-bold mb-4">{editComponent.type}</h2>
               <button
                 onClick={() => {
-                  setComponents((prev) =>
-                    prev.filter((c) => c.id !== editComponent.id)
-                  );
+                  setComponents((prev) => prev.filter((c) => c.id !== editComponent.id));
                   setEditComponent(null);
                 }}
                 className="p-2 bg-red-600 hover:bg-red-500 text-white rounded-lg transition duration-200"
               >
-                Delete
+                Supprimer
               </button>
             </div>
             <div className="space-y-3">
               <div>
-                <label className="text-sm font-medium">Name</label>
+                <label className="text-sm font-medium">Nom</label>
                 <input
                   type="text"
                   placeholder="Nom du composant"
                   value={editComponent.type}
                   onChange={(e) =>
-                    setEditComponent((prev) =>
-                      prev ? { ...prev, type: e.target.value } : null
-                    )
+                    setEditComponent((prev) => prev ? { ...prev, type: e.target.value } : null)
                   }
                   className="w-full mt-1 p-2 bg-gray-800 border border-gray-700 rounded-lg focus:ring focus:ring-blue-500 outline-none"
                 />
@@ -958,9 +631,7 @@ export default function Page() {
                     max={800}
                     value={editComponent.x}
                     onChange={(e) =>
-                      setEditComponent((prev) =>
-                        prev ? { ...prev, x: parseInt(e.target.value) } : null
-                      )
+                      setEditComponent((prev) => prev ? { ...prev, x: parseInt(e.target.value) } : null)
                     }
                     className="w-full mt-1 p-2 bg-gray-800 border border-gray-700 rounded-lg focus:ring focus:ring-blue-500 outline-none"
                   />
@@ -973,9 +644,7 @@ export default function Page() {
                     max={500}
                     value={editComponent.y}
                     onChange={(e) =>
-                      setEditComponent((prev) =>
-                        prev ? { ...prev, y: parseInt(e.target.value) } : null
-                      )
+                      setEditComponent((prev) => prev ? { ...prev, y: parseInt(e.target.value) } : null)
                     }
                     className="w-full mt-1 p-2 bg-gray-800 border border-gray-700 rounded-lg focus:ring focus:ring-blue-500 outline-none"
                   />
@@ -998,9 +667,7 @@ export default function Page() {
               <button
                 onClick={() => {
                   setComponents((prev) =>
-                    prev.map((c) =>
-                      c.id === editComponent.id ? editComponent : c
-                    )
+                    prev.map((c) => (c.id === editComponent.id ? editComponent : c))
                   );
                   setEditComponent(null);
                 }}
@@ -1018,7 +685,7 @@ export default function Page() {
           </div>
         </div>
       )}
-      <UpdateMessage />
+
 
       <div className="relative z-0 flex-1 flex flex-col items-center gap-4 mt-auto mb-auto">
         <Stage
@@ -1037,30 +704,28 @@ export default function Page() {
         >
           <Layer>
             {components.map(renderComponent)}
-            {tempConnection &&
-              (() => {
-                const from = components.find(
-                  (c) => c.id === tempConnection.from
-                );
-                if (!from) return null;
+            {tempConnection && (() => {
+              const from = components.find((c) => c.id === tempConnection.from);
+              if (!from) return null;
 
-                const fromX = from.x + 90;
-                const fromY = from.y + (tempConnection.fromOutput + 1) * 15;
-                const toX = mousePos.x;
-                const toY = mousePos.y;
+              const fromX = from.x + 90;
+              const fromY = from.y + (tempConnection.fromOutput + 1) * 15;
+              const toX = mousePos.x;
+              const toY = mousePos.y;
 
-                const controlX = (fromX + toX) / 2;
-                const controlY = fromY;
+              const controlX = (fromX + toX) / 2;
+              const controlY = fromY;
 
-                return (
-                  <Path
-                    data={`M ${fromX},${fromY} Q ${controlX},${controlY} ${toX},${toY}`}
-                    stroke={"gray"}
-                    strokeWidth={2}
-                    fill="transparent"
-                  />
-                );
-              })()}
+              return (
+                <Path
+                  data={`M ${fromX},${fromY} Q ${controlX},${controlY} ${toX},${toY}`}
+                  stroke={"gray"}
+                  strokeWidth={2}
+                  fill="transparent"
+                />
+              );
+            })()
+            }
             {connections.map((conn, index) => {
               const from = components.find((c) => c.id === conn.from);
               const to = components.find((c) => c.id === conn.to);

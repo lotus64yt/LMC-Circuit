@@ -1,0 +1,52 @@
+{
+    "startLoading": "LMC Cirtuit is loading...",
+    "operator": {
+        "AND": "AND",
+        "OR": "OR",
+        "NOT": "NOT",
+        "XOR": "XOR",
+        "NAND": "NAND",
+        "NOR": "NOR",
+        "XNOR": "XNOR"
+    },
+    "gate": {
+        "transistor": "Transistor"
+    },
+    "inputs": {
+        "button": "Button"
+    },
+    "outputs": {
+        "Screen7Segment": "7 Segment Display",
+        "lamp": "Lamp"
+    },
+    "sidebar": {
+        "search": "Search",
+        "simulationStart": "Start Simulation",
+        "operator": {
+            "title": "Operators",
+            "AND": "AND Gate",
+            "OR": "OR Gate",
+            "NOT": "NOT Gate",
+            "XOR": "XOR Gate",
+            "NAND": "NAND Gate",
+            "NOR": "NOR Gate",
+            "XNOR": "XNOR Gate"
+        },
+        "gate": {
+            "title": "Gates",
+            "transistor": "Transistor"
+        },
+        "inputs": {
+            "title": "Inputs",
+            "button": "Button"
+        },
+        "outputs": {
+            "title": "Outputs",
+            "Screen7Segment": "7 Segment Display",
+            "lamp": "Lamp"
+        }
+    },
+    "componentInfos": {
+        "delete": "Delete"
+    }
+}
