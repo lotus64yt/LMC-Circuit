@@ -284,10 +284,8 @@ export default function Page() {
     );
   
     const data = possibleInputs.map((inputState, time) => {
-      // On clone les composants pour ne pas muter l'original
       let updatedComponents = components.map((comp) => ({ ...comp }));
   
-      // On assigne à chaque composant d'entrée son état correspondant
       inputs.forEach((comp, idx) => {
         updatedComponents = updatedComponents.map((c) =>
           c.id === comp.id ? { ...c, state: inputState[idx] } : c
@@ -320,7 +318,6 @@ export default function Page() {
         });
       }
   
-      // Créer des tableaux avec le nom et l'état pour les entrées et sorties
       const inputResults = inputs.map((comp, idx) => ({
         type: comp.type,
         state: inputState[idx]
@@ -341,8 +338,47 @@ export default function Page() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [outputs.show]);
   
-  
-  
+  useEffect(() => {
+    if (!simulationRunning) return;
+
+    const newComponents = components.map((comp) => {
+      if (comp.logic || comp.onClick) {
+        const inputs = connections
+          .filter((conn) => conn.to === comp.id)
+          .map((conn) => components.find((c) => c.id === conn.from)?.state || false);
+
+        if (comp.logic) {
+          comp.state = comp.logic(inputs)[0];
+        } else if (comp.onClick) {
+          comp.state = comp.state;
+        }
+        if (comp.state) {
+          connections
+            .filter((conn) => conn.from === comp.id)
+            .forEach((conn) => {
+              const to = components.find((c) => c.id === conn.to);
+              if (to) {
+                to.state = true;
+              }
+            });
+        } else {
+          connections
+            .filter((conn) => conn.from === comp.id)
+            .forEach((conn) => {
+              const to = components.find((c) => c.id === conn.to);
+              if (to) {
+                to.state = false;
+              }
+            });
+        }
+      }
+
+      return comp;
+    });
+
+    setComponents(newComponents);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inputChanged, simulationRunning]);
 
   const addComponent = (
     type: keyof typeof defaultGates,

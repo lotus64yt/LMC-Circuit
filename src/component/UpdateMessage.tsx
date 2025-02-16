@@ -25,6 +25,7 @@ const UpdateMessage = () => {
                     </p>
                     <ul className="list-disc pl-5">
                         <li className="text-gray-300">- FIX : Load files</li>
+                        <li className="text-gray-300">- FIX : Simulation problem</li>
                         <li className="text-gray-300">- ADD : Circuit Analytics</li>
                     </ul>
                 </div>
