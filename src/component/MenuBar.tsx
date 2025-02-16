@@ -20,11 +20,31 @@ const MenuBar = ({
     setConnections: (connections: Connection[]) => void;
     outputs: {
       show: boolean;
-      data: { time: number; inputs: boolean[]; outputs: boolean[] }[];
+      data: {
+        time: number;
+        inputs: {
+          type: string;
+          state: boolean;
+        }[];
+        outputs: {
+          type: string;
+          state: boolean;
+        }[];
+      }[];
     };
     setOutputs: (outputs: {
       show: boolean;
-      data: { time: number; inputs: boolean[]; outputs: boolean[] }[];
+      data: {
+        time: number;
+        inputs: {
+          type: string;
+          state: boolean;
+        }[];
+        outputs: {
+          type: string;
+          state: boolean;
+        }[];
+      }[];
     }) => void;
     stageRef: React.RefObject<Konva.Stage | null>;
   };

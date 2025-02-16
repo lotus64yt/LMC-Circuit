@@ -2,8 +2,13 @@ import React from 'react';
 
 interface ChronogramData {
   time: number;
-  inputs: boolean[];
-  outputs: boolean[];
+  inputs: SignalData[];
+  outputs: SignalData[];
+}
+
+interface SignalData {
+  type: string;
+  state: boolean;
 }
 
 interface ChronogramProps {
@@ -24,12 +29,12 @@ const Chronogram: React.FC<ChronogramProps> = ({ data }) => {
         <div className="w-24 flex flex-col gap-6 pr-2">
           {data[0].inputs.map((_, idx) => (
             <div key={`input-label-${idx}`} className="h-6 flex items-center justify-end font-mono">
-              in_{idx}
+              {_.type}
             </div>
           ))}
           {data[0].outputs.map((_, idx) => (
             <div key={`output-label-${idx}`} className="h-6 flex items-center justify-end font-mono">
-              out_{idx}
+              {_.type}
             </div>
           ))}
         </div>
@@ -42,8 +47,8 @@ const Chronogram: React.FC<ChronogramProps> = ({ data }) => {
                 {data.map((entry, colIndex) => {
                   const isInput = rowIndex < numberOfInputs;
                   const value = isInput
-                    ? entry.inputs[rowIndex]
-                    : entry.outputs[rowIndex - numberOfInputs];
+                    ? entry.inputs[rowIndex].state
+                    : entry.outputs[rowIndex - numberOfInputs].state;
 
                   return (
                     <div

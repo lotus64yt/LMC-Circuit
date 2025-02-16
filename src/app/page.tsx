@@ -71,7 +71,17 @@ export default function Page() {
   const [editComponent, setEditComponent] = useState<Component | null>(null);
   const [outputs, setOutputs] = useState<{
     show: boolean;
-    data: { time: number; inputs: boolean[]; outputs: boolean[] }[];
+    data: {
+      time: number;
+      inputs: {
+        type: string;
+        state: boolean;
+      }[];
+      outputs: {
+        type: string;
+        state: boolean;
+      }[];
+    }[];
   }>({
     show: false,
     data: [],
@@ -267,7 +277,6 @@ export default function Page() {
     }
   
     const inputs = components.filter((c) => c.inputs === 0);
-  
     const inputCount = inputs.length;
   
     const possibleInputs = Array.from({ length: 2 ** inputCount }, (_, i) =>
@@ -275,8 +284,10 @@ export default function Page() {
     );
   
     const data = possibleInputs.map((inputState, time) => {
+      // On clone les composants pour ne pas muter l'original
       let updatedComponents = components.map((comp) => ({ ...comp }));
   
+      // On assigne à chaque composant d'entrée son état correspondant
       inputs.forEach((comp, idx) => {
         updatedComponents = updatedComponents.map((c) =>
           c.id === comp.id ? { ...c, state: inputState[idx] } : c
@@ -289,19 +300,17 @@ export default function Page() {
   
         updatedComponents = updatedComponents.map((comp) => {
           if (comp.logic) {
-            const inputs = connections
+            const compInputs = connections
               .filter((conn) => conn.to === comp.id)
               .map(
                 (conn) =>
                   updatedComponents.find((c) => c.id === conn.from)?.state || false
               );
   
-            const newState = comp.logic(inputs)[0];
-  
+            const newState = comp.logic(compInputs)[0];
             if (newState !== comp.state) {
               stable = false;
             }
-  
             return { ...comp, state: newState };
           } else if (comp.onClick) {
             comp.onClick(comp);
@@ -311,19 +320,28 @@ export default function Page() {
         });
       }
   
-      const outputStates = updatedComponents
-        .filter((c) => c.outputs === 0)
-        .map((c) => c.state || false);
+      // Créer des tableaux avec le nom et l'état pour les entrées et sorties
+      const inputResults = inputs.map((comp, idx) => ({
+        type: comp.type,
+        state: inputState[idx]
+      }));
   
-      return { time, inputs: inputState, outputs: outputStates };
+      const outputResults = updatedComponents
+        .filter((c) => c.outputs === 0)
+        .map((c) => ({
+          type: c.type,
+          state: c.state || false
+        }));
+  
+      return { time, inputs: inputResults, outputs: outputResults };
     });
   
     setOutputs({ show: true, data });
-
     setComponents(components.map((c) => ({ ...c, state: undefined })));
-  
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [outputs.show]);
+  
+  
   
 
   const addComponent = (
