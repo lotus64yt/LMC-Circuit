@@ -24,6 +24,7 @@ import Konva from "konva";
 import UpdateMessage from "@/component/UpdateMessage";
 import { TbLogicBuffer } from "react-icons/tb";
 import MenuBar from "@/component/MenuBar";
+import Chronogram from "@/component/Chronogram";
 
 export type Component = {
   id: string;
@@ -68,6 +69,13 @@ export default function Page() {
   const [search, setSearch] = useState("");
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
   const [editComponent, setEditComponent] = useState<Component | null>(null);
+  const [outputs, setOutputs] = useState<{
+    show: boolean;
+    data: { time: number; inputs: boolean[]; outputs: boolean[] }[];
+  }>({
+    show: false,
+    data: [],
+  });
   const [customBlocks, setCustomBlocks] = useState<{
     [key: string]: Component;
   }>({});
@@ -229,7 +237,12 @@ export default function Page() {
         );
       },
     },
-    Lamp: { type: "Lamp", inputs: 1, outputs: 0 },
+    Lamp: {
+      type: "Lamp",
+      inputs: 1,
+      outputs: 0,
+      logic: (inputs: boolean[]) => [!!inputs.find((e) => e === true)],
+    },
   };
 
   // useEffect(() => {
@@ -249,48 +262,69 @@ export default function Page() {
   // }, [isDragging, components]);
 
   useEffect(() => {
-    if (!simulationRunning) return;
-
-    const newComponents = components.map((comp) => {
-      if (comp.logic || comp.onClick) {
-        const inputs = connections
-          .filter((conn) => conn.to === comp.id)
-          .map(
-            (conn) => components.find((c) => c.id === conn.from)?.state || false
-          );
-
-        if (comp.logic) {
-          comp.state = comp.logic(inputs)[0];
-        } else if (comp.onClick) {
-          comp.state = comp.state;
-        }
-        if (comp.state) {
-          connections
-            .filter((conn) => conn.from === comp.id)
-            .forEach((conn) => {
-              const to = components.find((c) => c.id === conn.to);
-              if (to) {
-                to.state = true;
-              }
-            });
-        } else {
-          connections
-            .filter((conn) => conn.from === comp.id)
-            .forEach((conn) => {
-              const to = components.find((c) => c.id === conn.to);
-              if (to) {
-                to.state = false;
-              }
-            });
-        }
+    if (!outputs.show) {
+      return setOutputs({ show: false, data: [] });
+    }
+  
+    const inputs = components.filter((c) => c.inputs === 0);
+  
+    const inputCount = inputs.length;
+  
+    const possibleInputs = Array.from({ length: 2 ** inputCount }, (_, i) =>
+      Array.from({ length: inputCount }, (_, j) => Boolean(i & (1 << j)))
+    );
+  
+    const data = possibleInputs.map((inputState, time) => {
+      let updatedComponents = components.map((comp) => ({ ...comp }));
+  
+      inputs.forEach((comp, idx) => {
+        updatedComponents = updatedComponents.map((c) =>
+          c.id === comp.id ? { ...c, state: inputState[idx] } : c
+        );
+      });
+  
+      let stable = false;
+      while (!stable) {
+        stable = true;
+  
+        updatedComponents = updatedComponents.map((comp) => {
+          if (comp.logic) {
+            const inputs = connections
+              .filter((conn) => conn.to === comp.id)
+              .map(
+                (conn) =>
+                  updatedComponents.find((c) => c.id === conn.from)?.state || false
+              );
+  
+            const newState = comp.logic(inputs)[0];
+  
+            if (newState !== comp.state) {
+              stable = false;
+            }
+  
+            return { ...comp, state: newState };
+          } else if (comp.onClick) {
+            comp.onClick(comp);
+            return { ...comp, state: comp.state };
+          }
+          return comp;
+        });
       }
-
-      return comp;
+  
+      const outputStates = updatedComponents
+        .filter((c) => c.outputs === 0)
+        .map((c) => c.state || false);
+  
+      return { time, inputs: inputState, outputs: outputStates };
     });
+  
+    setOutputs({ show: true, data });
 
-    setComponents(newComponents);
+    setComponents(components.map((c) => ({ ...c, state: undefined })));
+  
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [inputChanged, simulationRunning]);
+  }, [outputs.show]);
+  
 
   const addComponent = (
     type: keyof typeof defaultGates,
@@ -304,7 +338,6 @@ export default function Page() {
     const pointer = isDragging
       ? stage.getRelativePointerPosition()
       : stage.getPointerPosition();
-    console.log(isDragging);
 
     if (!pointer) return;
 
@@ -387,7 +420,6 @@ export default function Page() {
         x={comp.x}
         y={comp.y}
         onContextMenu={(e) => {
-          if (simulationRunning) return;
           e.evt.preventDefault();
           setEditComponent(comp);
         }}
@@ -835,12 +867,55 @@ export default function Page() {
           options={{
             connections,
             components,
+            outputs,
             setComponents,
             setConnections,
+            setOutputs,
             stageRef,
           }}
         />
       </div>
+      {outputs.show ? (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm z-50">
+          <div className="bg-gray-900 text-white p-6 rounded-2xl shadow-xl w-[645px]">
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-bold mb-4">Outputs</h2>
+              <p className="text-sm text-gray-400 ml-auto">
+                {outputs.data.length} cycles
+              </p>
+            </div>
+            <div className="space-y-3">
+              {outputs.data.length === 0 ? (
+                <div>
+                  <div className="flex justify-center">
+                    <div className="items-center text-center">
+                      <p className="text-sm text-gray-400">
+                        Preparing results, please wait...
+                      </p>
+                      <div className="flex justify-center my-4">
+                        <div className="w-10 h-10 border-4 border-t-4 border-blue-500 rounded-full animate-spin border-t-transparent"></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="overflow-auto">
+                  <Chronogram data={outputs.data} />
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-between mt-4">
+              <button
+                onClick={() => setOutputs({ ...outputs, show: false })}
+                className="flex-1 p-2 bg-red-600 hover:bg-red-500 text-white rounded-lg transition duration-200 mx-1"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
       {editCustomBlock && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm z-50">
           <div className="bg-gray-900 text-white p-6 rounded-2xl shadow-xl w-[550px]">
@@ -923,6 +998,7 @@ export default function Page() {
             <div className="flex justify-between items-center">
               <h2 className="text-xl font-bold mb-4">{editComponent.type}</h2>
               <button
+                disabled={simulationRunning}
                 onClick={() => {
                   setComponents((prev) =>
                     prev.filter((c) => c.id !== editComponent.id)
@@ -939,6 +1015,7 @@ export default function Page() {
                 <label className="text-sm font-medium">Name</label>
                 <input
                   type="text"
+                  disabled={simulationRunning}
                   placeholder="Nom du composant"
                   value={editComponent.type}
                   onChange={(e) =>
@@ -953,6 +1030,7 @@ export default function Page() {
                 <div className="flex-1">
                   <label className="text-sm font-medium">X</label>
                   <input
+                    disabled={simulationRunning}
                     type="number"
                     min={0}
                     max={800}
@@ -968,6 +1046,7 @@ export default function Page() {
                 <div className="flex-1">
                   <label className="text-sm font-medium">Y</label>
                   <input
+                    disabled={simulationRunning}
                     type="number"
                     min={0}
                     max={500}
@@ -980,6 +1059,22 @@ export default function Page() {
                     className="w-full mt-1 p-2 bg-gray-800 border border-gray-700 rounded-lg focus:ring focus:ring-blue-500 outline-none"
                   />
                 </div>
+                {simulationRunning ? (
+                  <div className="flex-1">
+                    <label className="text-sm font-medium">State</label>
+                    <input
+                      type="checkbox"
+                      disabled={true}
+                      defaultChecked={editComponent.state}
+                      // onChange={(e) =>
+                      //   setEditComponent((prev) =>
+                      //     prev ? { ...prev, state: e.target.checked } : null
+                      //   )
+                      // }
+                      className="w-full mt-1 p-2 bg-gray-800 border border-gray-700 rounded-lg focus:ring focus:ring-blue-500 outline-none"
+                    />
+                  </div>
+                ) : null}
               </div>
             </div>
             {/* {editComponent.onClick && (

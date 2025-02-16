@@ -3,13 +3,29 @@ import Konva from "konva";
 import { useRef, useState } from "react";
 
 const MenuBar = ({
-  options: { components, setComponents, connections, setConnections, stageRef },
+  options: {
+    components,
+    setComponents,
+    connections,
+    setConnections,
+    outputs,
+    setOutputs,
+    stageRef,
+  },
 }: {
   options: {
     components: Component[];
     setComponents: (components: Component[]) => void;
     connections: Connection[];
     setConnections: (connections: Connection[]) => void;
+    outputs: {
+      show: boolean;
+      data: { time: number; inputs: boolean[]; outputs: boolean[] }[];
+    };
+    setOutputs: (outputs: {
+      show: boolean;
+      data: { time: number; inputs: boolean[]; outputs: boolean[] }[];
+    }) => void;
     stageRef: React.RefObject<Konva.Stage | null>;
   };
 }) => {
@@ -26,7 +42,11 @@ const MenuBar = ({
       const corruptedData = e.target.result as string;
       const cleanedData = corruptedData.replace(/(.)./g, "$1");
       const decodedData = atob(cleanedData);
-      const parsedData = JSON.parse(decodedData);
+      const parsedData = JSON.parse(decodedData, (key, value) =>
+        typeof value === "string" && value.startsWith("function")
+          ? eval(value.replace("function", ""))
+          : value
+      );
       const idMap = new Map();
 
       parsedData.components.forEach((component: Component) => {
@@ -68,7 +88,11 @@ const MenuBar = ({
         {
           label: "Save",
           onClick: () => {
-            const data = JSON.stringify({ components, connections });
+            const data = JSON.stringify(
+              { components, connections },
+              (key, value) =>
+                typeof value === "function" ? `function${value.toString()}` : value
+            );
             const encodedData = btoa(data);
             const corruptedData = encodedData
               .split("")
@@ -110,6 +134,15 @@ const MenuBar = ({
         },
       ],
     },
+    {
+      name: "Analysis",
+      options: [
+        {
+          label: "Show Outputs",
+          onClick: () => setOutputs({ ...outputs, show: true }),
+        },
+      ],
+    },
   ];
 
   return (
@@ -126,7 +159,10 @@ const MenuBar = ({
           className="relative mx-3"
           onMouseEnter={() => setOpenMenu(menu.name)}
         >
-          <div onMouseEnter={() => setOpenMenu(menu.name)} className="px-4 py-2 rounded-lg transition-all duration-300 ease-in-out hover:bg-gray-700 cursor-pointer">
+          <div
+            onMouseEnter={() => setOpenMenu(menu.name)}
+            className="px-4 py-2 rounded-lg transition-all duration-300 ease-in-out hover:bg-gray-700 cursor-pointer"
+          >
             <p onMouseEnter={() => setOpenMenu(menu.name)}>{menu.name}</p>
             {openMenu === menu.name ? (
               <div
