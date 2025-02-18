@@ -8,6 +8,7 @@ import {
   FaPause,
   FaLightbulb,
   FaArrowRight /*, FaPlus*/,
+  FaKeyboard,
 } from "react-icons/fa";
 import {
   GiLogicGateAnd,
@@ -49,6 +50,9 @@ export type Component = {
   state?: boolean;
   logic?: (inputs: boolean[]) => boolean[];
   onClick?: (component: Component) => void;
+  onPressStart?: (component: Component) => void;
+  onPressEnd?: (component: Component) => void;
+  key?: string;
 };
 
 export type tempComponent = {
@@ -114,6 +118,7 @@ export default function Page() {
   const [isClient, setIsClient] = useState(false);
   const [isHoveringWire, setIsHoveringWire] = useState<boolean | string>(false);
   const [editWire, setEditWire] = useState<Connection | null>(null);
+  const [ isKeyPressed, setIsKeyPressed ] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
@@ -132,8 +137,40 @@ export default function Page() {
       });
     });
     window.addEventListener("resize", updateTrashPos);
+    
     return () => window.removeEventListener("resize", updateTrashPos);
   }, []);
+
+  useEffect(() => {
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+  
+    function handleKeyDown(e: KeyboardEvent) {
+      setIsKeyPressed(true);
+      if (!simulationRunning) return;
+      components.forEach((comp) => {
+        if (comp.onPressStart && e.key?.toLocaleLowerCase() === comp.key?.toLocaleLowerCase()) {
+          comp.onPressStart(comp);
+        }
+      });
+    }
+  
+    function handleKeyUp(e: KeyboardEvent) {
+      setIsKeyPressed(false);
+      if (!simulationRunning) return;
+      components.forEach((comp) => {
+        if (comp.onPressEnd && e.key?.toLocaleLowerCase() === comp.key?.toLocaleLowerCase()) {
+          comp.onPressEnd(comp);
+        }
+      });
+    }
+  
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+    };
+  }, [simulationRunning, components]);
+  
 
   const defaultGates = {
     AND: {
@@ -204,6 +241,21 @@ export default function Page() {
           prev.map((c) =>
             c.id === component.id ? { ...c, state: !c.state } : c
           )
+        );
+      },
+    },
+    KeyboardInput: {
+      inputs: 0,
+      outputs: 1,
+      type: "Keyboard Input",
+      onPressStart: (component: Component) => {
+        setComponents((prev) =>
+          prev.map((c) => (c.id === component.id ? { ...c, state: true } : c))
+        );
+      },
+      onPressEnd: (component: Component) => {
+        setComponents((prev) =>
+          prev.map((c) => (c.id === component.id ? { ...c, state: false } : c))
         );
       },
     },
@@ -397,7 +449,7 @@ export default function Page() {
 
     setComponents(newComponents);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [inputChanged, simulationRunning]);
+  }, [inputChanged, simulationRunning, isKeyPressed]);
 
   const addComponent = (
     type: keyof typeof defaultGates,
@@ -446,6 +498,21 @@ export default function Page() {
       ...(type in defaultGates && "onClick" in defaultGates[type]
         ? {
             onClick: defaultGates[type]?.onClick as (
+              component: Component
+            ) => void,
+          }
+        : {}),
+      ...(type in defaultGates && "onPressStart" in defaultGates[type]
+        ? {
+            onPressStart: defaultGates[type]?.onPressStart as (
+              component: Component
+            ) => void,
+            key: "A",
+          }
+        : {}),
+      ...(type in defaultGates && "onPressEnd" in defaultGates[type]
+        ? {
+            onPressEnd: defaultGates[type]?.onPressEnd as (
               component: Component
             ) => void,
           }
@@ -696,6 +763,13 @@ export default function Page() {
       type: "Inputs",
     },
     {
+      onClick: () => addComponent("KeyboardInput"),
+      icon: <FaKeyboard />,
+      title: "Keyboard Input",
+      color: "bg-purple-600",
+      type: "Inputs",
+    },
+    {
       onClick: () => addComponent("Lamp"),
       icon: <FaLightbulb />,
       title: "Lamp",
@@ -760,7 +834,10 @@ export default function Page() {
   }
 
   return (
-    <div className="relative flex h-screen w-screen" onContextMenu={(e) => e.preventDefault()}>
+    <div
+      className="relative flex h-screen w-screen"
+      onContextMenu={(e) => e.preventDefault()}
+    >
       <div
         className={`fixed z-50 top-4 left-0 h-full overflow-y-auto overflow-x-hidden bg-gray-900 bg-opacity-80 shadow-lg backdrop-blur-md text-white flex flex-col items-center py-4 space-y-3 rounded-r-xl transition-all duration-300 ${
           expanded ? "w-56 px-4" : "w-20 px-3"
@@ -1141,23 +1218,52 @@ export default function Page() {
                     className="w-full mt-1 p-2 bg-gray-800 border border-gray-700 rounded-lg focus:ring focus:ring-blue-500 outline-none"
                   />
                 </div>
-                {simulationRunning ? (
-                  <div className="flex-1">
-                    <label className="text-sm font-medium">State</label>
-                    <input
-                      type="checkbox"
-                      disabled={true}
-                      defaultChecked={editComponent.state}
-                      // onChange={(e) =>
-                      //   setEditComponent((prev) =>
-                      //     prev ? { ...prev, state: e.target.checked } : null
-                      //   )
-                      // }
-                      className="w-full mt-1 p-2 bg-gray-800 border border-gray-700 rounded-lg focus:ring focus:ring-blue-500 outline-none"
-                    />
-                  </div>
-                ) : null}
               </div>
+              {typeof editComponent.key === "string" &&
+              editComponent.onPressStart &&
+              editComponent.onPressEnd ? (
+                <div>
+                  <label className="text-sm font-medium">Trigger</label>
+                  <input
+                    type="text"
+                    disabled={simulationRunning}
+                    placeholder="Trigger key"
+                    value={editComponent.key}
+                    maxLength={1}
+                    minLength={1}
+                    onChange={(e) =>
+                      setEditComponent((prev) =>
+                        prev
+                          ? {
+                              ...prev,
+                              key:
+                                e.target.value.slice(0, 1).length === 1
+                                  ? e.target.value.slice(0, 1)
+                                  : "",
+                            }
+                          : null
+                      )
+                    }
+                    className="w-full mt-1 p-2 bg-gray-800 border border-gray-700 rounded-lg focus:ring focus:ring-blue-500 outline-none"
+                  />
+                </div>
+              ) : null}
+              {simulationRunning ? (
+                <div className="flex-1">
+                  <label className="text-sm font-medium">State</label>
+                  <input
+                    type="checkbox"
+                    disabled={true}
+                    defaultChecked={editComponent.state}
+                    // onChange={(e) =>
+                    //   setEditComponent((prev) =>
+                    //     prev ? { ...prev, state: e.target.checked } : null
+                    //   )
+                    // }
+                    className="w-full mt-1 p-2 bg-gray-800 border border-gray-700 rounded-lg focus:ring focus:ring-blue-500 outline-none"
+                  />
+                </div>
+              ) : null}
             </div>
             {/* {editComponent.onClick && (
               <button
@@ -1399,7 +1505,9 @@ export default function Page() {
 
               return (
                 <Path
-                  onMouseEnter={() => setIsHoveringWire(conn.id)}
+                  onMouseEnter={() => {
+                    setIsHoveringWire(conn.id)
+                  }}
                   onMouseLeave={() => setIsHoveringWire(false)}
                   onContextMenu={(e) => {
                     e.evt.preventDefault();
