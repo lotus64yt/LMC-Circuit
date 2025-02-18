@@ -111,7 +111,9 @@ const MenuBar = ({
             const data = JSON.stringify(
               { components, connections },
               (key, value) =>
-                typeof value === "function" ? `function${value.toString()}` : value
+                typeof value === "function"
+                  ? `function${value.toString()}`
+                  : value
             );
             const encodedData = btoa(data);
             const corruptedData = encodedData
@@ -160,6 +162,27 @@ const MenuBar = ({
         {
           label: "Show Outputs",
           onClick: () => setOutputs({ ...outputs, show: true }),
+        },
+      ],
+    },
+    {
+      name: "Help",
+      options: [
+        {
+          label: "GitHub",
+          onClick: () =>
+            window.open("https://github.com/lotus64yt/LMC-Circuit"),
+        },
+        {
+          label: "Report Issue",
+          onClick: () =>
+            window.open("https://github.com/lotus64yt/LMC-Circuit/issues/new"),
+        },
+        {
+          label: "Read DataSheet",
+          onClick: () => {
+            window.open("https://github.com/lotus64yt/LMC-Circuit/wiki");
+          },
         },
       ],
     },

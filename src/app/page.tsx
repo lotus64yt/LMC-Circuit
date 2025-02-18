@@ -1543,8 +1543,8 @@ export default function Page() {
               const xLeft = to.x - 10;
               const xRight = to.x + (to.width ? to.width + 10 : 90);
               const yPos = (conn.toInput + 1) * 15;
-              const toX = conn.toInput < to.inputs / 2 ? xLeft : xRight;
-              const toY = to.y + (conn.toInput < to.inputs / 2 ? yPos : yPos - 15 * (to.inputs / 2));
+              const toX = to.display ? (conn.toInput < to.inputs / 2 ? xLeft : xRight) : to.x - 10;
+              const toY = to.display ? (to.y + (conn.toInput < to.inputs / 2 ? yPos : yPos - 15 * (to.inputs / 2))) : to.y + (conn.toInput + 1) * 15;
 
               let pathData;
               switch (conn.style) {
