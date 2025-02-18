@@ -26,6 +26,18 @@ import { TbLogicBuffer } from "react-icons/tb";
 import MenuBar from "@/component/MenuBar";
 import Chronogram from "@/component/Chronogram";
 
+const connectionStyles = [
+  { value: "straight", label: "Straight" },
+  { value: "curve", label: "Curve" },
+  { value: "elbow", label: "Elbow" },
+  { value: "zigzag", label: "Zigzag" },
+  { value: "step", label: "Step" },
+  { value: "loop", label: "Loop" },
+  { value: "arc", label: "Arc" },
+  { value: "wave", label: "Wave" },
+  { value: "bezier", label: "Bezier" },
+];
+
 export type Component = {
   id: string;
   type: "AND" | "OR" | "NOT" | "Button" | "Lamp" | "Screen7Segment" | string;
@@ -51,6 +63,8 @@ export type Connection = {
   to: string;
   fromOutput: number;
   toInput: number;
+  id: string;
+  style: (typeof connectionStyles)[number]["value"];
 };
 
 export default function Page() {
@@ -98,6 +112,8 @@ export default function Page() {
   });
   const stageRef = useRef<Konva.Stage>(null);
   const [isClient, setIsClient] = useState(false);
+  const [isHoveringWire, setIsHoveringWire] = useState<boolean | string>(false);
+  const [editWire, setEditWire] = useState<Connection | null>(null);
 
   useEffect(() => {
     setIsClient(true);
@@ -275,36 +291,37 @@ export default function Page() {
     if (!outputs.show) {
       return setOutputs({ show: false, data: [] });
     }
-  
+
     const inputs = components.filter((c) => c.inputs === 0);
     const inputCount = inputs.length;
-  
+
     const possibleInputs = Array.from({ length: 2 ** inputCount }, (_, i) =>
       Array.from({ length: inputCount }, (_, j) => Boolean(i & (1 << j)))
     );
-  
+
     const data = possibleInputs.map((inputState, time) => {
       let updatedComponents = components.map((comp) => ({ ...comp }));
-  
+
       inputs.forEach((comp, idx) => {
         updatedComponents = updatedComponents.map((c) =>
           c.id === comp.id ? { ...c, state: inputState[idx] } : c
         );
       });
-  
+
       let stable = false;
       while (!stable) {
         stable = true;
-  
+
         updatedComponents = updatedComponents.map((comp) => {
           if (comp.logic) {
             const compInputs = connections
               .filter((conn) => conn.to === comp.id)
               .map(
                 (conn) =>
-                  updatedComponents.find((c) => c.id === conn.from)?.state || false
+                  updatedComponents.find((c) => c.id === conn.from)?.state ||
+                  false
               );
-  
+
             const newState = comp.logic(compInputs)[0];
             if (newState !== comp.state) {
               stable = false;
@@ -317,27 +334,27 @@ export default function Page() {
           return comp;
         });
       }
-  
+
       const inputResults = inputs.map((comp, idx) => ({
         type: comp.type,
-        state: inputState[idx]
+        state: inputState[idx],
       }));
-  
+
       const outputResults = updatedComponents
         .filter((c) => c.outputs === 0)
         .map((c) => ({
           type: c.type,
-          state: c.state || false
+          state: c.state || false,
         }));
-  
+
       return { time, inputs: inputResults, outputs: outputResults };
     });
-  
+
     setOutputs({ show: true, data });
     setComponents(components.map((c) => ({ ...c, state: undefined })));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [outputs.show]);
-  
+
   useEffect(() => {
     if (!simulationRunning) return;
 
@@ -345,7 +362,9 @@ export default function Page() {
       if (comp.logic || comp.onClick) {
         const inputs = connections
           .filter((conn) => conn.to === comp.id)
-          .map((conn) => components.find((c) => c.id === conn.from)?.state || false);
+          .map(
+            (conn) => components.find((c) => c.id === conn.from)?.state || false
+          );
 
         if (comp.logic) {
           comp.state = comp.logic(inputs)[0];
@@ -589,7 +608,16 @@ export default function Page() {
 
   const completeConnection = (to: string, toInput: number) => {
     if (tempConnection) {
-      setConnections([...connections, { ...tempConnection, to, toInput }]);
+      setConnections([
+        ...connections,
+        {
+          ...tempConnection,
+          to,
+          toInput,
+          id: crypto.randomUUID(),
+          style: "curve",
+        },
+      ]);
       setTempConnection(null);
     } else {
       console.log("No temp connection");
@@ -732,7 +760,7 @@ export default function Page() {
   }
 
   return (
-    <div className="relative flex h-screen w-screen">
+    <div className="relative flex h-screen w-screen" onContextMenu={(e) => e.preventDefault()}>
       <div
         className={`fixed z-50 top-4 left-0 h-full overflow-y-auto overflow-x-hidden bg-gray-900 bg-opacity-80 shadow-lg backdrop-blur-md text-white flex flex-col items-center py-4 space-y-3 rounded-r-xl transition-all duration-300 ${
           expanded ? "w-56 px-4" : "w-20 px-3"
@@ -1167,6 +1195,101 @@ export default function Page() {
           </div>
         </div>
       )}
+      {editWire && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm z-50">
+          <div className="bg-gray-900 text-white p-6 rounded-2xl shadow-xl w-[350px]">
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-bold mb-4">Edit Wire</h2>
+              <button
+                disabled={simulationRunning}
+                onClick={() => {
+                  setConnections((prev) => [
+                    ...prev.filter((c) => c.id !== editWire.id),
+                  ]);
+                  setEditWire(null);
+                }}
+                className="p-2 bg-red-600 hover:bg-red-500 text-white rounded-lg transition duration-200"
+              >
+                Delete
+              </button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="text-sm font-medium">ID</label>
+                <input
+                  type="text"
+                  disabled
+                  placeholder="Wire ID"
+                  value={editWire.id}
+                  className="w-full mt-1 p-2 bg-gray-800 border border-gray-700 rounded-lg focus:ring focus:ring-blue-500 outline-none"
+                />
+              </div>
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <label className="text-sm font-medium">From</label>
+                  <input
+                    disabled
+                    type="string"
+                    value={components.find((c) => c.id === editWire.from)?.type}
+                    className="w-full mt-1 p-2 bg-gray-800 border border-gray-700 rounded-lg focus:ring focus:ring-blue-500 outline-none"
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="text-sm font-medium">To</label>
+                  <input
+                    disabled
+                    type="string"
+                    value={components.find((c) => c.id === editWire.to)?.type}
+                    className="w-full mt-1 p-2 bg-gray-800 border border-gray-700 rounded-lg focus:ring focus:ring-blue-500 outline-none"
+                  />
+                </div>
+              </div>
+              <div className="flex-1">
+                <label className="text-sm font-medium">Style</label>
+                <select
+                  className="w-full mt-1 p-2 bg-gray-800 border border-gray-700 rounded-lg focus:ring focus:ring-blue-500 outline-none"
+                  value={editWire.style}
+                  onChange={(e) =>
+                    setEditWire({ ...editWire, style: e.target.value })
+                  }
+                >
+                  {connectionStyles.map((style) => (
+                    <option
+                      key={style.value}
+                      value={style.value}
+                      className="bg-gray-800 text-white p-2"
+                    >
+                      {style.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="flex justify-between mt-4">
+              <button
+                onClick={() => {
+                  setConnections((prev) => {
+                    const index = prev.findIndex((c) => c.id === editWire.id);
+                    if (index === -1) return prev;
+                    prev[index] = editWire;
+                    return [...prev];
+                  });
+                  setEditWire(null);
+                }}
+                className="flex-1 p-2 bg-green-600 hover:bg-green-500 text-white rounded-lg transition duration-200 mx-1"
+              >
+                Save
+              </button>
+              <button
+                onClick={() => setEditWire(null)}
+                className="flex-1 p-2 bg-red-600 hover:bg-red-500 text-white rounded-lg transition duration-200 mx-1"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <UpdateMessage />
 
       <div className="relative z-0 flex-1 flex flex-col items-center gap-4 mt-auto mb-auto">
@@ -1182,6 +1305,14 @@ export default function Page() {
           }}
           onDragEnd={() => {
             document.body.style.cursor = "default";
+          }}
+          onClick={() => {
+            if (isDragging) {
+              setIsDragging(false);
+            }
+            if (tempConnection) {
+              setTempConnection(null);
+            }
           }}
         >
           <Layer>
@@ -1220,15 +1351,64 @@ export default function Page() {
               const toX = to.x - 10;
               const toY = to.y + (conn.toInput + 1) * 15;
 
-              const controlX = (fromX + toX) / 2;
-              const controlY = fromY;
+              let pathData;
+              switch (conn.style) {
+                case "curve":
+                  const controlX = (fromX + toX) / 2;
+                  const controlY = fromY;
+                  pathData = `M ${fromX},${fromY} Q ${controlX},${controlY} ${toX},${toY}`;
+                  break;
+                case "elbow":
+                  pathData = `M ${fromX},${fromY} L ${fromX + 20},${fromY} L ${
+                    fromX + 20
+                  },${toY} L ${toX},${toY}`;
+                  break;
+                case "zigzag":
+                  pathData = `M ${fromX},${fromY} L ${(fromX + toX) / 2},${
+                    fromY + 10
+                  } L ${(fromX + toX) / 2},${toY - 10} L ${toX},${toY}`;
+                  break;
+                case "step":
+                  pathData = `M ${fromX},${fromY} V ${
+                    (fromY + toY) / 2
+                  } H ${toX} V ${toY}`;
+                  break;
+                case "loop":
+                  pathData = `M ${fromX},${fromY} C ${fromX + 30},${
+                    fromY - 40
+                  } ${toX - 30},${toY + 40} ${toX},${toY}`;
+                  break;
+                case "arc":
+                  pathData = `M ${fromX},${fromY} A ${(toX - fromX) / 2},${
+                    Math.abs(toY - fromY) / 2
+                  } 0 0,1 ${toX},${toY}`;
+                  break;
+                case "wave":
+                  pathData = `M ${fromX},${fromY} C ${(fromX + toX) / 2},${
+                    fromY - 30
+                  } ${(fromX + toX) / 2},${toY + 30} ${toX},${toY}`;
+                  break;
+                case "bezier":
+                  pathData = `M ${fromX},${fromY} C ${fromX + 40},${fromY} ${
+                    toX - 40
+                  },${toY} ${toX},${toY}`;
+                  break;
+                default:
+                  pathData = `M ${fromX},${fromY} L ${toX},${toY}`;
+              }
 
               return (
                 <Path
+                  onMouseEnter={() => setIsHoveringWire(conn.id)}
+                  onMouseLeave={() => setIsHoveringWire(false)}
+                  onContextMenu={(e) => {
+                    e.evt.preventDefault();
+                    setEditWire(conn);
+                  }}
                   key={index}
-                  data={`M ${fromX},${fromY} Q ${controlX},${controlY} ${toX},${toY}`}
+                  data={pathData}
                   stroke={from.state ? "lime" : "white"}
-                  strokeWidth={2}
+                  strokeWidth={isHoveringWire === conn.id ? 4 : 2}
                   fill="transparent"
                 />
               );
