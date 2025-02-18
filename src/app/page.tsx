@@ -11,6 +11,7 @@ import {
   FaKeyboard,
 } from "react-icons/fa";
 import {
+  GiLed,
   GiLogicGateAnd,
   GiLogicGateNand,
   GiLogicGateNor,
@@ -53,6 +54,7 @@ export type Component = {
   onPressStart?: (component: Component) => void;
   onPressEnd?: (component: Component) => void;
   key?: string;
+  width?: number;
 };
 
 export type tempComponent = {
@@ -118,7 +120,7 @@ export default function Page() {
   const [isClient, setIsClient] = useState(false);
   const [isHoveringWire, setIsHoveringWire] = useState<boolean | string>(false);
   const [editWire, setEditWire] = useState<Connection | null>(null);
-  const [ isKeyPressed, setIsKeyPressed ] = useState(false);
+  const [isKeyPressed, setIsKeyPressed] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
@@ -137,40 +139,45 @@ export default function Page() {
       });
     });
     window.addEventListener("resize", updateTrashPos);
-    
+
     return () => window.removeEventListener("resize", updateTrashPos);
   }, []);
 
   useEffect(() => {
     window.addEventListener("keydown", handleKeyDown);
     window.addEventListener("keyup", handleKeyUp);
-  
+
     function handleKeyDown(e: KeyboardEvent) {
       setIsKeyPressed(true);
       if (!simulationRunning) return;
       components.forEach((comp) => {
-        if (comp.onPressStart && e.key?.toLocaleLowerCase() === comp.key?.toLocaleLowerCase()) {
+        if (
+          comp.onPressStart &&
+          e.key?.toLocaleLowerCase() === comp.key?.toLocaleLowerCase()
+        ) {
           comp.onPressStart(comp);
         }
       });
     }
-  
+
     function handleKeyUp(e: KeyboardEvent) {
       setIsKeyPressed(false);
       if (!simulationRunning) return;
       components.forEach((comp) => {
-        if (comp.onPressEnd && e.key?.toLocaleLowerCase() === comp.key?.toLocaleLowerCase()) {
+        if (
+          comp.onPressEnd &&
+          e.key?.toLocaleLowerCase() === comp.key?.toLocaleLowerCase()
+        ) {
           comp.onPressEnd(comp);
         }
       });
     }
-  
+
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
     };
   }, [simulationRunning, components]);
-  
 
   const defaultGates = {
     AND: {
@@ -201,7 +208,7 @@ export default function Page() {
       type: "NAND",
       inputs: 2,
       outputs: 1,
-      logic: (inputs: boolean[]) => [!(inputs[0] && inputs[1]) ? 1 : 0],
+      logic: (inputs: boolean[]) => [!(inputs[0] && inputs[1])],
     },
     NOR: {
       type: "NOR",
@@ -311,6 +318,42 @@ export default function Page() {
               shadowBlur={inputs[7] ? 8 : 0}
               shadowColor="red"
             />
+          </Group>
+        );
+      },
+    },
+    Matrix8x8: {
+      type: "8x8 LED Matrix",
+      inputs: 16,
+      outputs: 0,
+      width: 132,
+      display: (inputs: boolean[]) => {
+        const size = 12;
+        const spacing = 4;
+        const cols = 8;
+        const rows = 8;
+        const width = cols * (size + spacing) + spacing;
+        const height = rows * (size + spacing) + spacing;
+
+        return (
+          <Group>
+            <Rect width={width} height={height} fill="black" cornerRadius={8} />
+            {Array.from({ length: rows }).map((_, row) =>
+              Array.from({ length: cols }).map((_, col) => {
+                const isActive = inputs[col] && inputs[8 + row]; // Vérifie si X et Y sont actifs
+                return (
+                  <Circle
+                    key={`${row}-${col}`}
+                    x={col * (size + spacing) + spacing + size / 2}
+                    y={row * (size + spacing) + spacing + size / 2}
+                    radius={size / 2}
+                    fill={isActive ? "#ff3b3b" : "#222"}
+                    shadowBlur={isActive ? 6 : 0}
+                    shadowColor="red"
+                  />
+                );
+              })
+            )}
           </Group>
         );
       },
@@ -488,6 +531,11 @@ export default function Page() {
       x: baseX + offset,
       y: baseY + offset,
       state: type === "Button" ? false : undefined,
+      ...(type in defaultGates && "width" in defaultGates[type]
+        ? {
+            width: defaultGates[type]?.width as number,
+          }
+        : {}),
       ...(type in defaultGates && "logic" in defaultGates[type]
         ? {
             logic: defaultGates[type]?.logic as (
@@ -596,9 +644,12 @@ export default function Page() {
           <Rect
             width={80}
             height={
-              comp.inputs > 2 || comp.outputs > 2
-                ? 40 +
-                  11 * (comp.inputs > comp.outputs ? comp.inputs : comp.outputs)
+              !comp.display
+                ? comp.inputs > 2 || comp.outputs > 2
+                  ? 40 +
+                    11 *
+                      (comp.inputs > comp.outputs ? comp.inputs : comp.outputs)
+                  : 50
                 : 50
             }
             fill={comp.state ? "green" : "white"}
@@ -629,26 +680,53 @@ export default function Page() {
             />
           )}
         </Group>
-        {Array.from({ length: comp.inputs }).map((_, i) => (
-          <Circle
-            style={{ cursor: "pointer" }}
-            key={`in-${comp.id}-${i}`}
-            x={-10}
-            y={(i + 1) * 15}
-            radius={5}
-            fill="blue"
-            onClick={() => {
-              if (simulationRunning || !tempConnection) return;
-              completeConnection(comp.id, i);
-            }}
-            onMouseUp={() => {
-              if (simulationRunning || !tempConnection) return;
-              completeConnection(comp.id, i);
-            }}
-            onMouseEnter={() => (document.body.style.cursor = "pointer")}
-            onMouseLeave={() => (document.body.style.cursor = "default")}
-          />
-        ))}
+        {comp.display
+          ? Array.from({ length: comp.inputs }).map((_, i) => {
+              const xLeft = -10;
+              const xRight = comp.width ? comp.width + 10 : 90;
+              const yPos = (i + 1) * 15;
+
+              return (
+                <Circle
+                  style={{ cursor: "pointer" }}
+                  key={`in-${comp.id}-${i}`}
+                  x={i < comp.inputs / 2 ? xLeft : xRight}
+                  y={i < comp.inputs / 2 ? yPos : yPos - 15 * (comp.inputs / 2)}
+                  radius={5}
+                  fill="blue"
+                  onClick={() => {
+                    if (simulationRunning || !tempConnection) return;
+                    completeConnection(comp.id, i);
+                  }}
+                  onMouseUp={() => {
+                    if (simulationRunning || !tempConnection) return;
+                    completeConnection(comp.id, i);
+                  }}
+                  onMouseEnter={() => (document.body.style.cursor = "pointer")}
+                  onMouseLeave={() => (document.body.style.cursor = "default")}
+                />
+              );
+            })
+          : Array.from({ length: comp.inputs }).map((_, i) => (
+              <Circle
+                style={{ cursor: "pointer" }}
+                key={`in-${comp.id}-${i}`}
+                x={-10}
+                y={(i + 1) * 15}
+                radius={5}
+                fill="blue"
+                onClick={() => {
+                  if (simulationRunning || !tempConnection) return;
+                  completeConnection(comp.id, i);
+                }}
+                onMouseUp={() => {
+                  if (simulationRunning || !tempConnection) return;
+                  completeConnection(comp.id, i);
+                }}
+                onMouseEnter={() => (document.body.style.cursor = "pointer")}
+                onMouseLeave={() => (document.body.style.cursor = "default")}
+              />
+            ))}
         {Array.from({ length: comp.outputs }).map((_, i) => (
           <Circle
             key={`out-${comp.id}-${i}`}
@@ -780,6 +858,13 @@ export default function Page() {
       onClick: () => addComponent("Screen7Segment"),
       icon: <FaLightbulb />,
       title: "7 Segments screen",
+      color: "bg-orange-600",
+      type: "Outputs",
+    },
+    {
+      onClick: () => addComponent("Matrix8x8"),
+      icon: <GiLed />,
+      title: "8x8 LED Matrix",
       color: "bg-orange-600",
       type: "Outputs",
     },
@@ -1454,8 +1539,12 @@ export default function Page() {
 
               const fromX = from.x + 90;
               const fromY = from.y + (conn.fromOutput + 1) * 15;
-              const toX = to.x - 10;
-              const toY = to.y + (conn.toInput + 1) * 15;
+
+              const xLeft = to.x - 10;
+              const xRight = to.x + (to.width ? to.width + 10 : 90);
+              const yPos = (conn.toInput + 1) * 15;
+              const toX = conn.toInput < to.inputs / 2 ? xLeft : xRight;
+              const toY = to.y + (conn.toInput < to.inputs / 2 ? yPos : yPos - 15 * (to.inputs / 2));
 
               let pathData;
               switch (conn.style) {
@@ -1506,7 +1595,7 @@ export default function Page() {
               return (
                 <Path
                   onMouseEnter={() => {
-                    setIsHoveringWire(conn.id)
+                    setIsHoveringWire(conn.id);
                   }}
                   onMouseLeave={() => setIsHoveringWire(false)}
                   onContextMenu={(e) => {

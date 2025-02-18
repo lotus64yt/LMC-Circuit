@@ -26,6 +26,7 @@ const UpdateMessage = () => {
                     <ul className="list-disc pl-5">
                         <li className="text-gray-300">- ADD : Edit Wire style</li>
                         <li className="text-gray-300">- ADD : Keyboard Input</li>
+                        <li className="text-gray-300">- ADD : 8*8 Led Matrix</li>
                     </ul>
                 </div>
 
