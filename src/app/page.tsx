@@ -27,18 +27,8 @@ import UpdateMessage from "@/component/UpdateMessage";
 import { TbLogicBuffer } from "react-icons/tb";
 import MenuBar from "@/component/MenuBar";
 import Chronogram from "@/component/Chronogram";
+import { connectionStyles } from "@/data/connections";
 
-const connectionStyles = [
-  { value: "straight", label: "Straight" },
-  { value: "curve", label: "Curve" },
-  { value: "elbow", label: "Elbow" },
-  { value: "zigzag", label: "Zigzag" },
-  { value: "step", label: "Step" },
-  { value: "loop", label: "Loop" },
-  { value: "arc", label: "Arc" },
-  { value: "wave", label: "Wave" },
-  { value: "bezier", label: "Bezier" },
-];
 
 export type Component = {
   id: string;
@@ -48,8 +38,10 @@ export type Component = {
   outputs: number;
   x: number;
   y: number;
-  state?: boolean;
+  state?: boolean[] | undefined[];
   logic?: (inputs: boolean[]) => boolean[];
+  onEnable?: (component: Component) => void;
+  onDisable?: (component: Component) => void;
   onClick?: (component: Component) => void;
   onPressStart?: (component: Component) => void;
   onPressEnd?: (component: Component) => void;
@@ -190,7 +182,7 @@ export default function Page() {
       type: "OR",
       inputs: 2,
       outputs: 1,
-      logic: (inputs: boolean[]) => [inputs[0] || inputs[1]],
+      logic: (inputs: boolean[]) => [inputs.includes(true)],
     },
     NOT: {
       type: "NOT",
@@ -239,6 +231,53 @@ export default function Page() {
         inputs[2] && inputs[3],
       ],
     },
+    "4 Bit To BCD": {
+      type: "4 Bit To BCD",
+      inputs: 4,
+      outputs: 9,
+      logic: (inputs: boolean[]) => {
+        let decimal = 0;
+        for (let i = 0; i < inputs.length; i++) {
+          if (inputs[i]) {
+            decimal += 1 << i;
+          }
+        }
+
+        const output = new Array(9).fill(false);
+
+        if (decimal >= 1 && decimal <= 9) {
+          output[decimal - 1] = true;
+        }
+
+        return output;
+      },
+    },
+    "BCD To 7 Segment": {
+      type: "BCD To 7 Segment",
+      inputs: 9,
+      outputs: 7,
+      logic: (inputs: boolean[]) => {
+        const decimal = inputs.findIndex((val) => val === true) + 1;
+
+        const segments = [
+          [true, true, true, true, true, true, false], // 0
+          [false, true, true, false, false, false, false], // 1
+          [true, true, false, true, true, false, true], // 2
+          [true, true, true, true, false, false, true], // 3
+          [false, true, true, false, false, true, true], // 4
+          [true, false, true, true, false, true, true], // 5
+          [true, false, true, true, true, true, true], // 6
+          [true, true, true, false, false, false, false], // 7
+          [true, true, true, true, true, true, true], // 8
+          [true, true, true, true, false, true, true], // 9
+        ];
+        
+        console.log(decimal, segments[decimal]);
+        return (
+          segments[decimal] || segments[0]
+        );
+      },
+    },
     Button: {
       type: "Button",
       inputs: 0,
@@ -246,7 +285,9 @@ export default function Page() {
       onClick: (component: Component) => {
         setComponents((prev) =>
           prev.map((c) =>
-            c.id === component.id ? { ...c, state: !c.state } : c
+            c.id === component.id
+              ? { ...c, state: [!(c.state?.[0] || false)] }
+              : c
           )
         );
       },
@@ -257,12 +298,14 @@ export default function Page() {
       type: "Keyboard Input",
       onPressStart: (component: Component) => {
         setComponents((prev) =>
-          prev.map((c) => (c.id === component.id ? { ...c, state: true } : c))
+          prev.map((c) => (c.id === component.id ? { ...c, state: [true] } : c))
         );
       },
       onPressEnd: (component: Component) => {
         setComponents((prev) =>
-          prev.map((c) => (c.id === component.id ? { ...c, state: false } : c))
+          prev.map((c) =>
+            c.id === component.id ? { ...c, state: [false] } : c
+          )
         );
       },
     },
@@ -270,7 +313,9 @@ export default function Page() {
       type: "7 Segment diplay",
       inputs: 8,
       outputs: 0,
+      logic: (inputs: boolean[]) => inputs,
       display: (inputs: boolean[]) => {
+        console.log(inputs);
         const width = 80;
         const height = 138;
         const margin = 5;
@@ -327,6 +372,7 @@ export default function Page() {
       inputs: 16,
       outputs: 0,
       width: 132,
+      logic: (inputs: boolean[]) => inputs,
       display: (inputs: boolean[]) => {
         const size = 12;
         const spacing = 4;
@@ -340,7 +386,7 @@ export default function Page() {
             <Rect width={width} height={height} fill="black" cornerRadius={8} />
             {Array.from({ length: rows }).map((_, row) =>
               Array.from({ length: cols }).map((_, col) => {
-                const isActive = inputs[col] && inputs[8 + row]; // Vérifie si X et Y sont actifs
+                const isActive = inputs[col] && inputs[8 + row];
                 return (
                   <Circle
                     key={`${row}-${col}`}
@@ -362,7 +408,7 @@ export default function Page() {
       type: "Lamp",
       inputs: 1,
       outputs: 0,
-      logic: (inputs: boolean[]) => [!!inputs.find((e) => e === true)],
+      logic: (inputs: boolean[]) => [inputs.find((e) => e === true)],
     },
   };
 
@@ -384,10 +430,11 @@ export default function Page() {
 
   useEffect(() => {
     if (!outputs.show) {
-      return setOutputs({ show: false, data: [] });
+      setOutputs({ show: false, data: [] });
+      return;
     }
 
-    const inputs = components.filter((c) => c.inputs === 0);
+    const inputs = components.filter((c) => c.inputs === 0 && c.outputs === 1);
     const inputCount = inputs.length;
 
     const possibleInputs = Array.from({ length: 2 ** inputCount }, (_, i) =>
@@ -399,7 +446,7 @@ export default function Page() {
 
       inputs.forEach((comp, idx) => {
         updatedComponents = updatedComponents.map((c) =>
-          c.id === comp.id ? { ...c, state: inputState[idx] } : c
+          c.id === comp.id ? { ...c, state: [inputState[idx]] } : c
         );
       });
 
@@ -411,14 +458,15 @@ export default function Page() {
           if (comp.logic) {
             const compInputs = connections
               .filter((conn) => conn.to === comp.id)
-              .map(
-                (conn) =>
-                  updatedComponents.find((c) => c.id === conn.from)?.state ||
-                  false
-              );
+              .map((conn) => {
+                const fromComponent = updatedComponents.find(
+                  (c) => c.id === conn.from
+                );
+                return fromComponent?.state?.[conn.fromOutput] ?? false;
+              });
 
-            const newState = comp.logic(compInputs)[0];
-            if (newState !== comp.state) {
+            const newState = comp.logic(compInputs);
+            if (JSON.stringify(newState) !== JSON.stringify(comp.state)) {
               stable = false;
             }
             return { ...comp, state: newState };
@@ -439,58 +487,85 @@ export default function Page() {
         .filter((c) => c.outputs === 0)
         .map((c) => ({
           type: c.type,
-          state: c.state || false,
+          state: c.state?.some((s) => s) ?? false,
         }));
 
       return { time, inputs: inputResults, outputs: outputResults };
     });
 
     setOutputs({ show: true, data });
-    setComponents(components.map((c) => ({ ...c, state: undefined })));
+    setComponents((prevComponents) =>
+      prevComponents.map((c) => ({ ...c, state: undefined }))
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [outputs.show]);
 
   useEffect(() => {
-    if (!simulationRunning) return;
+    if (!simulationRunning) {
+      setComponents((prevComponents) =>
+        prevComponents.map((c) => ({
+          ...c,
+          state: Array.from({ length: c.outputs }, () => false),
+        }))
+      );
+      return;
+    }
 
-    const newComponents = components.map((comp) => {
-      if (comp.logic || comp.onClick) {
-        const inputs = connections
-          .filter((conn) => conn.to === comp.id)
-          .map(
-            (conn) => components.find((c) => c.id === conn.from)?.state || false
-          );
+    const connectionsToMap = new Map<string, Connection[]>();
+    const connectionsFromMap = new Map<string, Connection[]>();
 
-        if (comp.logic) {
-          comp.state = comp.logic(inputs)[0];
-        } else if (comp.onClick) {
-          comp.state = comp.state;
-        }
-        if (comp.state) {
-          connections
-            .filter((conn) => conn.from === comp.id)
-            .forEach((conn) => {
-              const to = components.find((c) => c.id === conn.to);
-              if (to) {
-                to.state = true;
-              }
-            });
-        } else {
-          connections
-            .filter((conn) => conn.from === comp.id)
-            .forEach((conn) => {
-              const to = components.find((c) => c.id === conn.to);
-              if (to) {
-                to.state = false;
-              }
-            });
-        }
+    connections.forEach((conn) => {
+      if (!connectionsToMap.has(conn.to)) {
+        connectionsToMap.set(conn.to, []);
       }
+      connectionsToMap.get(conn.to)!.push(conn);
 
-      return comp;
+      if (!connectionsFromMap.has(conn.from)) {
+        connectionsFromMap.set(conn.from, []);
+      }
+      connectionsFromMap.get(conn.from)!.push(conn);
     });
 
-    setComponents(newComponents);
+    setComponents((prevComponents) => {
+      let updatedComponents = [...prevComponents];
+      let hasChanged = true;
+
+      while (hasChanged) {
+        hasChanged = false;
+
+        updatedComponents = updatedComponents.map((comp) => {
+          if (comp.logic || comp.onClick) {
+            const incomingConns = connectionsToMap.get(comp.id) || [];
+            const inputs = incomingConns.map((conn) => {
+              const fromComp = updatedComponents.find(
+                (c) => c.id === conn.from
+              );
+              return fromComp?.state?.[conn.fromOutput] ?? false;
+            });
+
+            const newState = comp.onClick
+              ? comp.state
+              : comp.logic
+              ? comp.logic(inputs)
+              : Array(comp.outputs).fill(false);
+
+            const updatedState = Array.isArray(newState)
+              ? newState
+              : [newState];
+
+            if (JSON.stringify(updatedState) !== JSON.stringify(comp.state)) {
+              hasChanged = true;
+            }
+
+            return { ...comp, state: updatedState };
+          }
+          return comp;
+        });
+      }
+
+      return updatedComponents;
+    });
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inputChanged, simulationRunning, isKeyPressed]);
 
@@ -530,7 +605,9 @@ export default function Page() {
       outputs: defaultGates[type]?.outputs || 0,
       x: baseX + offset,
       y: baseY + offset,
-      state: type === "Button" ? false : undefined,
+      state: Array.from({ length: defaultGates[type]?.outputs || 0 }).map(
+        () => false
+      ),
       ...(type in defaultGates && "width" in defaultGates[type]
         ? {
             width: defaultGates[type]?.width as number,
@@ -652,22 +729,20 @@ export default function Page() {
                   : 50
                 : 50
             }
-            fill={comp.state ? "green" : "white"}
+            fill={
+              comp.state?.map((e) => e || false).includes(true)
+                ? "green"
+                : "white"
+            }
             stroke="black"
             strokeWidth={2}
             cornerRadius={8}
           />
           {comp.display ? (
-            comp.display([
-              ...Array.from({ length: comp.inputs }).map((_, i) =>
-                connections.some(
-                  (conn) =>
-                    conn.to === comp.id &&
-                    conn.toInput === i &&
-                    components.find((c) => c.id === conn.from)?.state
-                )
-              ),
-            ])
+            comp.display(
+              comp.state?.map((e) => e || false) ||
+                Array(comp.inputs).fill(false)
+            )
           ) : (
             <Text
               text={comp.type}
@@ -830,6 +905,20 @@ export default function Page() {
       onClick: () => addComponent("74LS00"),
       icon: <TbLogicBuffer />,
       title: "74LS00",
+      color: "bg-blue-600",
+      type: "Gates",
+    },
+    {
+      onClick: () => addComponent("4 Bit To BCD"),
+      icon: <TbLogicBuffer />,
+      title: "4 Bit To BCD",
+      color: "bg-blue-600",
+      type: "Gates",
+    },
+    {
+      onClick: () => addComponent("BCD To 7 Segment"),
+      icon: <TbLogicBuffer />,
+      title: "BCD To 7 Segment",
       color: "bg-blue-600",
       type: "Gates",
     },
@@ -1339,7 +1428,11 @@ export default function Page() {
                   <input
                     type="checkbox"
                     disabled={true}
-                    defaultChecked={editComponent.state}
+                    defaultChecked={
+                      typeof editComponent.state === "boolean"
+                        ? editComponent.state
+                        : editComponent.state?.map((e) => e).includes(true)
+                    }
                     // onChange={(e) =>
                     //   setEditComponent((prev) =>
                     //     prev ? { ...prev, state: e.target.checked } : null
@@ -1543,8 +1636,17 @@ export default function Page() {
               const xLeft = to.x - 10;
               const xRight = to.x + (to.width ? to.width + 10 : 90);
               const yPos = (conn.toInput + 1) * 15;
-              const toX = to.display ? (conn.toInput < to.inputs / 2 ? xLeft : xRight) : to.x - 10;
-              const toY = to.display ? (to.y + (conn.toInput < to.inputs / 2 ? yPos : yPos - 15 * (to.inputs / 2))) : to.y + (conn.toInput + 1) * 15;
+              const toX = to.display
+                ? conn.toInput < to.inputs / 2
+                  ? xLeft
+                  : xRight
+                : to.x - 10;
+              const toY = to.display
+                ? to.y +
+                  (conn.toInput < to.inputs / 2
+                    ? yPos
+                    : yPos - 15 * (to.inputs / 2))
+                : to.y + (conn.toInput + 1) * 15;
 
               let pathData;
               switch (conn.style) {
@@ -1604,7 +1706,11 @@ export default function Page() {
                   }}
                   key={index}
                   data={pathData}
-                  stroke={from.state ? "lime" : "white"}
+                  stroke={
+                    from.state?.map((e) => e || false).includes(true)
+                      ? "lime"
+                      : "white"
+                  }
                   strokeWidth={isHoveringWire === conn.id ? 4 : 2}
                   fill="transparent"
                 />

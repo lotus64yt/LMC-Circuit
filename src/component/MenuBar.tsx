@@ -1,4 +1,5 @@
 import { Component, Connection } from "@/app/page";
+import { loadCircuit } from "@/utils/loadCircuit";
 import Konva from "konva";
 import { useRef, useState } from "react";
 
@@ -52,48 +53,13 @@ const MenuBar = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
 
-  const handleFileImport = (e?: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileImport = async (e?: React.ChangeEvent<HTMLInputElement>) => {
     const file = e?.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      if (!e.target?.result) return;
-      const corruptedData = e.target.result as string;
-      const cleanedData = corruptedData.replace(/(.)./g, "$1");
-      const decodedData = atob(cleanedData);
-      const parsedData = JSON.parse(decodedData, (key, value) =>
-        typeof value === "string" && value.startsWith("function")
-          ? eval(value.replace("function", ""))
-          : value
-      );
-      const idMap = new Map();
-
-      parsedData.components.forEach((component: Component) => {
-        idMap.set(component.id, crypto.randomUUID());
-      });
-
-      const newComponents = parsedData.components.map(
-        (component: Component) => ({
-          ...component,
-          id: idMap.get(component.id),
-          x: component.x + 10,
-          y: component.y + 10,
-        })
-      );
-
-      const newConnections = parsedData.connections.map(
-        (connection: Connection) => ({
-          ...connection,
-          from: idMap.get(connection.from) || connection.from,
-          to: idMap.get(connection.to) || connection.to,
-        })
-      );
-
-      setComponents([...components, ...newComponents]);
-      setConnections([...connections, ...newConnections]);
-    };
-    reader.readAsText(file);
+    const circuit = await loadCircuit(file);
+    setComponents([...components, ...circuit.components]);
+    setConnections([...connections, ...circuit.connections]);
   };
 
   const menus = [
@@ -186,6 +152,30 @@ const MenuBar = ({
         },
       ],
     },
+    {
+      name: "Presets",
+      options: [
+        {
+          label: "Basic",
+          onClick: async () => {
+            const blob = await fetch("/presets/basic.lmccircuit").then((res) => res.blob());
+            const file = new File([blob], "basic.lmccircuit", { type: blob.type });
+            const circuit = await loadCircuit(file);
+            setComponents([...components, ...circuit.components]);
+            setConnections([...connections, ...circuit.connections]);
+          }
+        }, {
+          label: "4 Bit to 7 Segment Decoder",
+          onClick: async () => {
+            const blob = await fetch("/presets/4bit_decoder.lmccircuit").then((res) => res.blob());
+            const file = new File([blob], "4bit_decoder.lmccircuit", { type: blob.type });
+            const circuit = await loadCircuit(file);
+            setComponents([...components, ...circuit.components]);
+            setConnections([...connections, ...circuit.connections]);
+          }
+        }
+      ]
+    }
   ];
 
   return (
